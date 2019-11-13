@@ -5,6 +5,7 @@ import unittest
 import numpy as np
 import networkx as nx
 import demography
+from demography.demo_class import InvalidGraph
 
 def example_graph_simple():
     G = nx.DiGraph()
@@ -26,9 +27,6 @@ def example_graph_merger(f1, f2):
     G.add_weighted_edges_from([('B','D',f1), ('C','D',f2)])
     return G
 
-def example_graph_multiple_roots():
-    G = nx.DiGraph()
-    
 class TestGraphStructure(unittest.TestCase):
     """
     Tests the Demography class functions extract the correct topology and catch errors
@@ -40,8 +38,26 @@ class TestGraphStructure(unittest.TestCase):
         dg = demography.DemoGraph(G)
         self.assertEqual(dg.root, 'root')
 
-    #def test_single_root():
-    #    pass
+    def test_single_root(self):
+        G = nx.DiGraph()
+        G.add_node('root1', nu=1, T=0)
+        G.add_node('root2', nu=1, T=0)
+        G.add_node('A', nu=1, T=.1)
+        G.add_weighted_edges_from([('root1','A',.5), ('root2','A',.5)])
+        self.assertRaises(InvalidGraph, demography.DemoGraph, G)
+
+    def test_no_loops(self):
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=0.1)
+        G.add_node('B', nu=1, T=0.2)
+        G.add_node('C', nu=2, T=0.1)
+        G.add_edges_from([('root','A'),('A','B'),('B','C'),('C','A')])
+        self.assertRaises(InvalidGraph, demography.DemoGraph, G)
+
+    #def test_all_times_align(self):
+    #    G = example_graph_with_misaligned_times()
+    #    self.assertRaises(InvalidGraph, demography.DemoGraph, G)
 
     def test_theta_computation(self):
         G = example_graph_simple()
@@ -55,11 +71,30 @@ class TestGraphStructure(unittest.TestCase):
         dg3 = demography.DemoGraph(G)
         self.assertTrue(np.isclose(dg3.get_theta(), 1))
     
-    #def test_catch_merger_sum():
-    #    G1 = example_graph_merger(.2, .8)
-    #    G2 = example_graph_merger(.3, .4)
-        # how do you check if a function catches an error and raises an Exception?
-    #    pass
+    def test_catch_merger_sum(self):
+        G = example_graph_merger(.2, .5)
+        self.assertRaises(InvalidGraph, demography.DemoGraph, G)
+    
+    def test_merger_without_weights(self):
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=0.1)
+        G.add_node('B', nu=1, T=0.2)
+        G.add_node('C', nu=2, T=0.1)
+        G.add_edges_from([('root','A'),('root','B'),('A','C'),('B','C')])
+        self.assertRaises(InvalidGraph, demography.DemoGraph, G)
+    
+    def test_three_pop_merger(self):
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=0.1)
+        G.add_node('B', nu=1, T=0.2)
+        G.add_node('C', nu=2, T=0.1)
+        G.add_node('D', nu=1, T=0.1)
+        G.add_node('E', nu=2, T=0.1)
+        G.add_edges_from([('root','A'),('root','B'),('B','C'),('B','D'),
+            ('A','E'), ('C','E'), ('D','E') ])
+        self.assertRaises(InvalidGraph, demography.DemoGraph, G)
 
     #def test_samples_only_from_leaves():
     #    pass

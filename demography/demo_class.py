@@ -8,15 +8,19 @@ from . import integration
 #from . import msprime_functions
 import tskit
 
-# networkx version needs to be >= 2.0
-#if nx.__version__ < 2.0:
-#    raise issue
+## check nx version (must be >= 2.1)
+def check_nx_version():
+    assert (float(nx.__version__) >= 2.0), "networkx must be version 2.0 or higher to use Demography"
 
 try:
     import msprime
     msprime_installed = 1
 except ImportError:
     msprime_installed = 0
+
+## exception raised if the input graph has an issue
+class InvalidGraph(Exception):
+    pass
 
 class DemoGraph():
     """
@@ -54,19 +58,27 @@ class DemoGraph():
     """
     def __init__(self, G, Ne=None, mutation_rate=None, recombination_rate=None, 
                  samples=None, sequence_length=None):
+        check_nx_version()
+        
         self.G = G
-        self.Ne = Ne
-        self.mutation_rate = mutation_rate
-        self.recombination_rate = recombination_rate
-        self.samples = samples
-        self.sequence_length = sequence_length
-
-        self.theta = self.get_theta()
 
         self.leaves = self.get_leaves()
         self.root = self.get_root()
         self.successors = self.get_successors()
         self.predecessors = self.get_predecessors()
+
+        # check that this is a valid graph
+        # raises InvalidGraph exception if there are multiple roots, or if the times
+        # of splitting/merging populations do not align, or if there are loops
+        self.check_valid_demography()
+
+        self.Ne = Ne
+        self.mutation_rate = mutation_rate
+        self.recombination_rate = recombination_rate
+        self.samples = samples
+        self.sequence_length = sequence_length
+        self.theta = self.get_theta()
+
 
     def get_root(self):
         # returns the root of the demography (the initial population)
@@ -84,6 +96,37 @@ class DemoGraph():
         # returns a dict of parental populations for each node, if they exist
         return {x : list(self.G.predecessors(x)) for x in self.G if list(self.G.predecessors(x))}
 
+    # set of tests to check that the demography is specified properly
+    def check_valid_demography(self):
+        # check that there is only a single root
+        num_roots = sum([node not in self.predecessors for node in self.G.nodes] )
+        if num_roots != 1:
+            raise InvalidGraph('demography requires a single root')
+        # check that there are no loops
+        if len(list(nx.simple_cycles(self.G))) > 0:
+            raise InvalidGraph('demography cannot have any loops')
+        # check that mergers are valid (proportions sum to one)
+        any_mergers = False
+        for pop in self.predecessors:
+            if len(self.predecessors[pop]) != 1:
+                if len(self.predecessors[pop]) != 2:
+                    raise InvalidGraph('mergers can only be between two pops')
+                else:
+                    total_weight = 0
+                    for parent in self.predecessors[pop]:
+                        if 'weight' not in self.G.get_edge_data(parent, pop):
+                            raise InvalidGraph('weights must be assigned for mergers')
+                        else:
+                            total_weight += self.G.get_edge_data(parent, pop)['weight']
+                    if total_weight != 1.:
+                        raise InvalidGraph('merger weights must sum to 1')
+        # check that all times align
+    #    if all_times_align() == False:
+    #        raise InvalidGraph('splits/mergers do not align')
+
+    #def all_times_align(self):
+    #    # returns True if split and merger times align throughout the graph
+
     def get_theta(self):
         if self.Ne is not None and self.mutation_rate is not None:
             if self.sequence_length is None:
@@ -94,13 +137,13 @@ class DemoGraph():
             theta = 1.0
         return theta
 
-    def LD(self, rho=None, pop_ids=None):
+    def LD(self, rho=None, theta=None, pop_ids=None):
         # compute expected LD curves and heterozygosity statistics for populations with
         # given samples. uses moments.LD
         # rho = 4*Ne*r, where r is the per base recombination rate
         # rho is either None, a signle value, or a list of rhos
         
-        y = integration.evolve_ld(self, rho=rho, pop_ids=pop_ids)
+        y = integration.evolve_ld(self, rho=rho, theta=theta, pop_ids=pop_ids)
         return y
 
 """
