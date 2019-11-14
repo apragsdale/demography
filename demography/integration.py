@@ -37,6 +37,12 @@ tol = 1e-14
 
 """
 Functions shared between multiple simulation engines.
+
+Events that are consistent between moments, moments.LD, and dadi:
+Split
+Merge
+Pulse migrate
+Marginalize
 """
 
 def get_pulse_events(G):
@@ -53,6 +59,14 @@ def get_pulse_events(G):
             # order them chronologically
             pulses[pop_from] = sorted(pulses[pop_from])
     return pulses
+
+
+def update_pulse_migration_events(pulse_migration_events, new_pops, t_epoch):
+    for pop in new_pops:
+        if pop in pulse_migration_events:
+            for pulse_event in pulse_migration_events[pop]:
+                pulse_event[0] -= t_epoch
+    return pulse_migration_events
 
 
 def get_pop_size_function(nus):
@@ -79,13 +93,6 @@ def get_pop_size_function(nus):
         return lambda t: [nu_func(t) for nu_func in nu]
     else:
         return nus
-
-
-
-def get_events_at_end_of_epoch():
-    pass
-
-
 
 
 def get_migration_matrix(G, new_pops):
@@ -120,8 +127,8 @@ def get_selfing_rates(G, new_pops):
     # get the selfing rates for the list of new_pops
     selfing = []
     for pop in new_pops:
-        if 'selfing' in dg.G.nodes[pop]:
-            selfing.append(dg.G.nodes[pop]['selfing'])
+        if 'selfing' in G.nodes[pop]:
+            selfing.append(G.nodes[pop]['selfing'])
         else:
             selfing.append(0)
     if set(selfing) == {0}:
@@ -164,6 +171,21 @@ def add_size_to_nus(G, pop, time_left):
         elif 'growth_rate' in G.nodes[pop] and 'nu0' in G.nodes[pop]:
             nu0 = G.nodes[pop]['nu0'] * np.exp(G.nodes[pop]['growth_rate'] * tt)
             return [nu0, G.nodes[pop]['growth_rate']]
+
+
+def get_new_pulse_times(new_pops, pulse_migration_events):
+    new_pulse_times = []
+    for this_pop in new_pops:
+        if this_pop not in pulse_migration_events:
+            new_pulse_times.append(1e10)
+        else:
+            temp_time = 1e10
+            for pulse_event in pulse_migration_events[this_pop]:
+                if pulse_event[0] > 0:
+                    temp_time = min(temp_time, pulse_event[0])
+            new_pulse_times.append(temp_time)
+    return new_pulse_times
+
 
 """
 Functions to evolve moments.LD to get LD statistics (no maximum number of pops)
@@ -214,7 +236,6 @@ def get_moments_ld_arguments(dg):
         else:
             new_pops = [] # records populations present after any events
             new_times = [] # records time left to integrate of these pops
-            new_pulse_times = [] # records time to next pulse event 
             new_nus = [] # records new pop sizes, and growth rate if given
             new_events = []
             
@@ -275,15 +296,7 @@ def get_moments_ld_arguments(dg):
             
             # for new pops, get the times to the next pulse (ones that are positive)
             # (we already set negative the times to pulse if they have occured)
-            for this_pop in new_pops:
-                if this_pop not in pulse_migration_events:
-                    new_pulse_times.append(1e10)
-                else:
-                    temp_time = 1e10
-                    for pulse_event in pulse_migration_events[this_pop]:
-                        if pulse_event[0] > 0:
-                            temp_time = min(temp_time, pulse_event[0])
-                    new_pulse_times.append(temp_time)
+            new_pulse_times = get_new_pulse_times(new_pops, pulse_migration_events)
             
             # set integration time of this epoch to next pulse or end of population
             time_left = new_times
@@ -292,14 +305,15 @@ def get_moments_ld_arguments(dg):
             
             # update times left to next events
             time_left = [pop_time_left - t_epoch for pop_time_left in time_left]
-            pulse_migration_events = update_pulse_migration_events(pulse_migration_events, new_pops, t_epoch)
+            pulse_migration_events = update_pulse_migration_events(
+                pulse_migration_events, new_pops, t_epoch)
             
             present_pops.append(new_pops)
             
             nus.append(new_nus)
             
             # get the migration matrix for this next epoch
-            migration_matrices.append(get_migration_matrix(dg.G, new_pops)
+            migration_matrices.append(get_migration_matrix(dg.G, new_pops))
             
             # get the list of frozen pops for this next epoch
             frozen_pops.append(get_frozen_pops(dg.G, new_pops))
@@ -311,16 +325,6 @@ def get_moments_ld_arguments(dg):
             events.append(reorder_events(new_events))
     
     return present_pops, integration_times, nus, migration_matrices, frozen_pops, selfing_rates, events
-
-
-def update_pulse_migration_events(pulse_migration_events, new_pops, t_epoch):
-    for pop in new_pops:
-        if pop in pulse_migration_events:
-            for pulse_event in pulse_migration_events[pop]:
-                pulse_event[0] -= t_epoch
-    return pulse_migration_events
-
-
 
 
 ### ^^^^ all to do with parsing the graph for moments/momentsLD

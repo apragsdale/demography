@@ -27,6 +27,36 @@ def example_graph_merger(f1, f2):
     G.add_weighted_edges_from([('B','D',f1), ('C','D',f2)])
     return G
 
+def example_multiple_mergers():
+    G = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('A', nu=1, T=0.1)
+    G.add_node('B', nu=1, T=0.1)
+    G.add_node('C', nu=2, T=0.1)
+    G.add_node('D', nu=1, T=0.2)
+    G.add_node('E', nu=2, T=0.1)
+    G.add_node('F', nu=1, T=0.3)
+    G.add_node('G', nu=1, T=0.1)
+    G.add_edges_from([('root','A'),('root','B'),('A','F'),('B','D'),('C','E')])
+    G.add_weighted_edges_from([('A','C',.5),('B','C',.5),
+        ('E','G',.5),('D','G',.5)])
+    return G
+
+def example_multiple_mergers_mismatch():
+    G = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('A', nu=1, T=0.1)
+    G.add_node('B', nu=1, T=0.1)
+    G.add_node('C', nu=2, T=0.15)
+    G.add_node('D', nu=1, T=0.2)
+    G.add_node('E', nu=2, T=0.1)
+    G.add_node('F', nu=1, T=0.3)
+    G.add_node('G', nu=1, T=0.1)
+    G.add_edges_from([('root','A'),('root','B'),('A','F'),('B','D'),('C','E')])
+    G.add_weighted_edges_from([('A','C',.5),('B','C',.5),
+        ('E','G',.5),('D','G',.5)])
+    return G
+
 class TestGraphStructure(unittest.TestCase):
     """
     Tests the Demography class functions extract the correct topology and catch errors
@@ -55,9 +85,12 @@ class TestGraphStructure(unittest.TestCase):
         G.add_edges_from([('root','A'),('A','B'),('B','C'),('C','A')])
         self.assertRaises(InvalidGraph, demography.DemoGraph, G)
 
-    #def test_all_times_align(self):
-    #    G = example_graph_with_misaligned_times()
-    #    self.assertRaises(InvalidGraph, demography.DemoGraph, G)
+    def test_all_times_align(self):
+        G = example_multiple_mergers()
+        dg = demography.DemoGraph(G)
+        self.assertTrue(dg.all_merger_times_align())
+        G = example_multiple_mergers_mismatch()
+        self.assertRaises(InvalidGraph, demography.DemoGraph, G)
 
     def test_theta_computation(self):
         G = example_graph_simple()

@@ -7,11 +7,7 @@ import networkx as nx
 import demography
 from demography.demo_class import InvalidGraph
 
-
-import moments.LD
-
-
-
+import moments.LD as mold
 
 def test_graph():
     G = nx.DiGraph()
@@ -26,16 +22,20 @@ def test_graph():
     G.add_weighted_edges_from([('B','pop1',0.7), ('D','pop1',0.3)])
     return G
 
-def test_moments_ld(theta=0.001, rho=None):
-    y = moments.LD.snm(rho=rho, theta=theta)
-    return y
-
 class TestMomentsLDIntegration(unittest.TestCase):
     """
     Tests parsing the DemoGraph object to pass to moments.LD
     """
-    def returns_expected_ld_curves(self):
+    def test_expected_ld_curve(self):
         G = test_graph()
         dg = demography.DemoGraph(G)
         Y = dg.LD(theta=0.001, rho=1.0, pop_ids=['pop1','pop2'])
-        
+        Ymold = mold.Demography.evolve(G, theta=0.001, rho=1.0, pop_ids=['pop1','pop2'])
+        self.assertTrue(np.allclose(Y[0], Ymold[0]))
+        self.assertTrue(np.allclose(Y[1], Ymold[1]))
+
+
+suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsLDIntegration)
+
+if __name__ == '__main__':
+    unittest.main()

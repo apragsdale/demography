@@ -10,7 +10,8 @@ import tskit
 
 ## check nx version (must be >= 2.1)
 def check_nx_version():
-    assert (float(nx.__version__) >= 2.0), "networkx must be version 2.0 or higher to use Demography"
+    assert (float(nx.__version__) >= 2.0), "networkx must be version 2.0 or \
+                                            higher to use Demography"
 
 try:
     import msprime
@@ -79,7 +80,9 @@ class DemoGraph():
         self.sequence_length = sequence_length
         self.theta = self.get_theta()
 
-
+    """
+    Functions to get relationships of populations within the graph
+    """
     def get_root(self):
         # returns the root of the demography (the initial population)
         return next(nx.topological_sort(self.G))
@@ -96,7 +99,9 @@ class DemoGraph():
         # returns a dict of parental populations for each node, if they exist
         return {x : list(self.G.predecessors(x)) for x in self.G if list(self.G.predecessors(x))}
 
-    # set of tests to check that the demography is specified properly
+    """
+    Set of functions to check that the demography is specified properly
+    """
     def check_valid_demography(self):
         # check that there is only a single root
         num_roots = sum([node not in self.predecessors for node in self.G.nodes] )
@@ -121,12 +126,44 @@ class DemoGraph():
                     if total_weight != 1.:
                         raise InvalidGraph('merger weights must sum to 1')
         # check that all times align
-    #    if all_times_align() == False:
-    #        raise InvalidGraph('splits/mergers do not align')
+        if self.all_merger_times_align() == False:
+            raise InvalidGraph('splits/mergers do not align')
 
-    #def all_times_align(self):
-    #    # returns True if split and merger times align throughout the graph
+    def all_merger_times_align(self):
+        # returns True if split and merger times align throughout the graph
+        # note that this doesn't check if all leaves end at the same time (contemp) 
+        all_align = True
+        for child in self.predecessors:
+            if len(self.predecessors[child]) == 2:
+                # is a merger - travel up each side through all paths to root, make sure
+                # times at common predecessors are equal
+                all_paths = nx.all_simple_paths(self.G, self.root, child)
+                # get corresponding times along each path
+                nodes = []
+                times = []
+                for simple_path in all_paths:
+                    nodes.append(['root'])
+                    times.append([0])
+                    for this_node in simple_path[1:]:
+                        nodes[-1].append(this_node)
+                        times[-1].append(self.G.nodes[this_node]['T'] + times[-1][-1])
+                # silly loop, but it works...
+                for i in range(len(nodes)-1):
+                    for n,t1 in zip(nodes[i], times[i]):
+                        for j in range(i,len(nodes)):
+                            if n in nodes[j]:
+                                t2 = times[j][nodes[j].index(n)]
+                                if t1 != t2:
+                                    all_align = False
+                                    return all_align
+                        
+            else:
+                continue
+        return all_align
 
+    """
+    Functions to simulate or evolve over the demography
+    """
     def get_theta(self):
         if self.Ne is not None and self.mutation_rate is not None:
             if self.sequence_length is None:
