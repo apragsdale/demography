@@ -143,7 +143,10 @@ def reorder_events(new_events):
     """
     new_events_reordered = []
     for event in new_events:
-        if event[0] != 'marginalize':
+        if event[0] != 'marginalize' and event[0] != 'pass:
+            new_events_reordered.append(event)
+    for event in new_events:
+        if event[0] == 'pass:
             new_events_reordered.append(event)
     for event in new_events:
         if event[0] == 'marginalize':
@@ -186,6 +189,69 @@ def get_new_pulse_times(new_pops, pulse_migration_events):
             new_pulse_times.append(temp_time)
     return new_pulse_times
 
+
+def get_next_events(dg, pulse_migration_events):
+    new_pops = [] # records populations present after any events
+    new_times = [] # records time left to integrate of these pops
+    new_nus = [] # records new pop sizes, and growth rate if given
+    new_events = [] # records events to apply at end of epoch
+    
+    # if any population is at an end, apply events
+    # else update its integration time left and pop size
+    for ii,pop_time_left in enumerate(time_left):
+        this_pop = present_pops[-1][ii]
+        if pop_time_left < tol:
+            if this_pop in dg.successors:
+                # if it has children (1 or 2), carry over or split
+                # check if children already in new_pops, 
+                # if so, it's a merger (with weights)
+                for child in dg.successors[this_pop]:
+                    if child not in new_pops:
+                        new_pops += dg.successors[this_pop]
+                        new_times += [dg.G.nodes[child]['T'] for child in dg.successors[this_pop]]
+                        new_nus += [add_size_to_nus(dg.G, child, dg.G.nodes[child]['T']) for child in dg.successors[this_pop]]
+                if len(dg.successors[this_pop]) == 2:
+                    child1, child2 = dg.successors[this_pop]
+                    new_events.append( ('split', this_pop, child1, child2) )
+                else:
+                    child = dg.successors[this_pop][0]
+                    # if the one child is a merger, need to specify,
+                    # otherwise, event is a pass on
+                    if dg.predecessors[child] == [this_pop]:
+                        new_events.append( ('pass', this_pop, child ) )
+                    else:
+                        parent1, parent2 = dg.predecessors[child]
+                        # check if we've already recorded this event 
+                        # from the other parent
+                        event_recorded = 0
+                        for event in new_events:
+                            if event[0] == 'merger' and event[1] == (parent1, parent2):
+                                event_recorded = 1
+                        if event_recorded == 1:
+                            continue
+                        else:
+                            weights = (dg.G.get_edge_data(parent1,child)['weight'], dg.G.get_edge_data(parent2,child)['weight'])
+                            new_events.append( ('merger', (parent1, parent2), weights, child) )
+            else: # else no children and we eliminate it
+                new_events.append( ('marginalize', this_pop) )
+                continue
+        else:
+            new_pops += [this_pop]
+            new_times += [pop_time_left]
+            
+            new_nus += [add_size_to_nus(dg.G, this_pop, pop_time_left)]
+    
+    # for previous pops, check if any have a pulse occuring now
+    # we'll update times directly in the pulse_migration_events dictionary
+    for this_pop in present_pops[-1]:
+        if this_pop in pulse_migration_events:
+            for pulse_event in pulse_migration_events[this_pop]:
+                if pulse_event[0] < 0: # this pulse already occurred
+                    continue
+                elif pulse_event[0] < tol: # this pulse occurs now
+                    new_events.append( ('pulse', this_pop, pulse_event[1], pulse_event[2]) )
+
+    return new_pops, new_times, new_nus, new_events
 
 """
 Functions to evolve moments.LD to get LD statistics (no maximum number of pops)
@@ -234,65 +300,7 @@ def get_moments_ld_arguments(dg):
                 np.all([p not in dg.successors for p in present_pops[-1]])):
             advance = False
         else:
-            new_pops = [] # records populations present after any events
-            new_times = [] # records time left to integrate of these pops
-            new_nus = [] # records new pop sizes, and growth rate if given
-            new_events = []
-            
-            # if any population is at an end, apply events
-            # else update its integration time left and pop size
-            for ii,pop_time_left in enumerate(time_left):
-                this_pop = present_pops[-1][ii]
-                if pop_time_left < tol:
-                    if this_pop in dg.successors:
-                        # if it has children (1 or 2), carry over or split
-                        # check if children already in new_pops, 
-                        # if so, it's a merger (with weights)
-                        for child in dg.successors[this_pop]:
-                            if child not in new_pops:
-                                new_pops += dg.successors[this_pop]
-                                new_times += [dg.G.nodes[child]['T'] for child in dg.successors[this_pop]]
-                                new_nus += [add_size_to_nus(dg.G, child, dg.G.nodes[child]['T']) for child in dg.successors[this_pop]]
-                        if len(dg.successors[this_pop]) == 2:
-                            child1, child2 = dg.successors[this_pop]
-                            new_events.append( ('split', this_pop, child1, child2) )
-                        else:
-                            child = dg.successors[this_pop][0]
-                            # if the one child is a merger, need to specify,
-                            # otherwise, event is a pass on
-                            if dg.predecessors[child] == [this_pop]:
-                                new_events.append( ('pass', this_pop, child ) )
-                            else:
-                                parent1, parent2 = dg.predecessors[child]
-                                # check if we've already recorded this event 
-                                # from the other parent
-                                event_recorded = 0
-                                for event in new_events:
-                                    if event[0] == 'merger' and event[1] == (parent1, parent2):
-                                        event_recorded = 1
-                                if event_recorded == 1:
-                                    continue
-                                else:
-                                    weights = (dg.G.get_edge_data(parent1,child)['weight'], dg.G.get_edge_data(parent2,child)['weight'])
-                                    new_events.append( ('merger', (parent1, parent2), weights, child) )
-                    else: # else no children and we eliminate it
-                        new_events.append( ('marginalize', this_pop) )
-                        continue
-                else:
-                    new_pops += [this_pop]
-                    new_times += [pop_time_left]
-                    
-                    new_nus += [add_size_to_nus(dg.G, this_pop, pop_time_left)]
-            
-            # for previous pops, check if any have a pulse occuring now
-            # we'll update times directly in the pulse_migration_events dictionary
-            for this_pop in present_pops[-1]:
-                if this_pop in pulse_migration_events:
-                    for pulse_event in pulse_migration_events[this_pop]:
-                        if pulse_event[0] < 0: # this pulse already occurred
-                            continue
-                        elif pulse_event[0] < tol: # this pulse occurs now
-                            new_events.append( ('pulse', this_pop, pulse_event[1], pulse_event[2]) )
+            new_pops, new_times, new_nus, new_events = get_next_events(dg, pulse_migration_events)
             
             # for new pops, get the times to the next pulse (ones that are positive)
             # (we already set negative the times to pulse if they have occured)
