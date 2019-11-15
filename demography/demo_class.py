@@ -183,13 +183,32 @@ class DemoGraph():
         y = integration.evolve_ld(self, rho=rho, theta=theta, pop_ids=pop_ids)
         return y
 
-"""
-    def SFS(self, engine='moments', s=None, h=None):
+    def SFS(self, engine='moments', pop_ids=None, sample_sizes=None, s=None, h=None, theta=None):
         # compute expected frequency spectrum for the given samples
         # engine could be either 'moments' or 'dadi'
-        fs = integration.evolve(self, engine=engine, s=s, h=h)
+
+        # check that there are at most 3/5 populations at any time... do inside function
+        #if pop_ids is None:
+            #set pops as leaves
+        #if sample_sizes is None:
+            #error
+        
+        # set population scaled selection coefficient, if given
+        if s is not None:
+            gamma = 2 * dg.Ne * s
+            if h is None:
+                h = 0.5
+        else:
+            gamma = None
+        
+        if engine == 'moments':
+            fs = integration.evolve_sfs_moments(self, theta=theta, pop_ids=pop_ids,
+                                                sample_sizes=sample_sizes,
+                                                gamma=gamma, h=h)
+        
         return fs
 
+"""
     def msprime_inputs(self):
         pop_config, samp, mig_mat, demo_events = msprime_from_graph(self)
         return pop_config, samp, mig_mat, demo_events
