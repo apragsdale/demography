@@ -127,6 +127,23 @@ class TestMomentsIntegration(unittest.TestCase):
         dg = demography.DemoGraph(G)
         fs = dg.SFS(theta=1, pop_ids=dg.leaves, sample_sizes=[10,10])
         # test that the output is correct against implemented moments model for this
+
+    def test_moments_integration_results(self):
+        G = test_graph()
+        dg = demography.DemoGraph(G)
+        fs = dg.SFS(theta=1.0, pop_ids=['pop1', 'pop2'], sample_sizes=[20,20])
+        fs2 = moments.Demographics1D.snm([60])
+        fs2.integrate([2.0], 0.5)
+        fs2 = moments.Manips.split_1D_to_2D(fs2, 20, 40)
+        fs2.integrate([1.5, 1.], 0.1)
+        fs2 = moments.Manips.split_2D_to_3D_2(fs2, 20, 20)
+        nu_func = lambda t: [1.5, 1.0, 0.5*np.exp(np.log(3.0/0.5)*t/0.15)]
+        fs2.integrate(nu_func, 0.1)
+        fs2 = moments.Manips.admix_into_new(fs2, 0, 1, 20, 0.7, 0)
+        nu2 = nu_func(0.1)[2]
+        nu_func = lambda t: [1.0, nu2*np.exp(np.log(3.0/nu2)*t/0.05)]
+        fs2.integrate(nu_func, 0.05)
+        self.assertTrue(np.allclose(fs.data, fs2.data))
         
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsIntegration)

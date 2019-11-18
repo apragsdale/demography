@@ -5,7 +5,7 @@ Class to define demography object, as a networkx DAG
 import networkx as nx
 import numpy as np
 from . import integration
-#from . import msprime_functions
+from . import msprime_functions
 import tskit
 
 ## check nx version (must be >= 2.1)
@@ -25,33 +25,34 @@ class InvalidGraph(Exception):
 
 class DemoGraph():
     """
-    Class for Demography objects, which are represented as networkx directed acyclic
-    graphs, whose nodes represent populations and edges represent splits and mergers
-    between these populations.
+    Class for Demography objects, which are represented as networkx directed
+    acyclic graphs, whose nodes represent populations and edges represent
+    splits and mergers between these populations.
 
-    The Demography object can store attributes, such as reference Ne, mutation rate,
-    recombination rate.
+    The Demography object can store attributes, such as reference Ne, mutation
+    rate, recombination rate.
 
-    Samples can be specified for any leaf population, and we assume that the sampling
-    occurs at the end of that population (so either it's a contemporary sample, or an
-    ancient sample at the end of that branch).
+    Samples can be specified for any leaf population, and we assume that the
+    sampling occurs at the end of that population (so either it's a
+    contemporary sample, or an ancient sample at the end of that branch).
 
-    Nodes, representing populations, can have a number of attributes. The required
-    attributes are:
-        Their sizes nu or size functions (nu0 and nuF, or nuF and growth_rate) relative
-        to Ne
+    Nodes, representing populations, can have a number of attributes. The
+    required attributes are:
+        Their sizes nu or size functions (nu0 and nuF, or nuF and growth_rate)
+        relative to Ne
         Times T (how long the populations exist)
     Optional attributes are:
-        Migration rates from the node to other populations (if they exist at the time)
+        Migration rates from the node to other populations (if they exist at 
+        the time)
         Pulse migration events from the node to other present populations
         Selfing rates (default is 0)
         Frozen population (default is False)
 
-    Edges define population splits or continuations (if we want to change an attribute)
-    and then also define mergers, if two populations direct to the same child population.
-    In the case of mergers, we also need to specify the weight of the two edges, and
-    those weights need to sume to 1 (so we know the contributions from the admixture
-    event).
+    Edges define population splits or continuations (if we want to change an
+    attribute) and then also define mergers, if two populations direct to the
+    same child population. In the case of mergers, we also need to specify the
+    weight of the two edges, and those weights need to sume to 1 (so we know
+    the contributions from the admixture event).
 
     Ne : reference effective population size
     samples : 
@@ -68,9 +69,9 @@ class DemoGraph():
         self.successors = self.get_successors()
         self.predecessors = self.get_predecessors()
 
-        # check that this is a valid graph
-        # raises InvalidGraph exception if there are multiple roots, or if the times
-        # of splitting/merging populations do not align, or if there are loops
+        # check that this is a valid graph, raises InvalidGraph exception if 
+        # there are multiple roots, or if the times of splitting/merging
+        # populations do not align, or if there are loops
         self.check_valid_demography()
 
         self.Ne = Ne
@@ -131,12 +132,12 @@ class DemoGraph():
 
     def all_merger_times_align(self):
         # returns True if split and merger times align throughout the graph
-        # note that this doesn't check if all leaves end at the same time (contemp) 
+        # note that this doesn't check if all leaves end at the same time
         all_align = True
         for child in self.predecessors:
             if len(self.predecessors[child]) == 2:
-                # is a merger - travel up each side through all paths to root, make sure
-                # times at common predecessors are equal
+                # is a merger - travel up each side through all paths to root,
+                # make sure times at common predecessors are equal
                 all_paths = nx.all_simple_paths(self.G, self.root, child)
                 # get corresponding times along each path
                 nodes = []
@@ -175,19 +176,20 @@ class DemoGraph():
         return theta
 
     def LD(self, rho=None, theta=None, pop_ids=None):
-        # compute expected LD curves and heterozygosity statistics for populations with
-        # given samples. uses moments.LD
+        # compute expected LD curves and heterozygosity statistics for
+        # populations with given samples. uses moments.LD
         # rho = 4*Ne*r, where r is the per base recombination rate
         # rho is either None, a signle value, or a list of rhos
         
         y = integration.evolve_ld(self, rho=rho, theta=theta, pop_ids=pop_ids)
         return y
 
-    def SFS(self, engine='moments', pop_ids=None, sample_sizes=None, s=None, h=None, theta=None):
+    def SFS(self, engine='moments', pop_ids=None, sample_sizes=None, 
+            s=None, h=None, theta=None):
         # compute expected frequency spectrum for the given samples
         # engine could be either 'moments' or 'dadi'
 
-        # check that there are at most 3/5 populations at any time... do inside function
+        # check that there are at most 3/5 populations at any time...
         #if pop_ids is None:
             #set pops as leaves
         #if sample_sizes is None:
@@ -202,21 +204,43 @@ class DemoGraph():
             gamma = None
         
         if engine == 'moments':
-            fs = integration.evolve_sfs_moments(self, theta=theta, pop_ids=pop_ids,
+            fs = integration.evolve_sfs_moments(self, theta=theta, 
+                                                pop_ids=pop_ids,
                                                 sample_sizes=sample_sizes,
                                                 gamma=gamma, h=h)
         
         return fs
 
-"""
-    def msprime_inputs(self):
-        pop_config, samp, mig_mat, demo_events = msprime_from_graph(self)
-        return pop_config, samp, mig_mat, demo_events
-    
-    def simulate_msprime(self, model='hudson'):
-        # want to allow replicates? genetic map? what else?
-        # model could be hudson or dtwf
-        pop_config, samp, mig_mat, demo_events = msprime_from_graph(self)
-        ts = msprime_from_graph.simulate(population_configurations=pop_config,
-            sequence_length=self.sequence_length)
-"""
+    def msprime_inputs(self, Ne=None):
+        # get the population_configurations, migration_matrix, and demographic
+        # events to run the msprime simulation
+        pop_config, mig_mat, demo_events = msprime_functions.msprime_from_graph(self)
+        return pop_config, mig_mat, demo_events
+
+    def msprime_samples(self, pop_ids=None, sample_sizes=None):
+        """
+        pop_ids is the list of populations to get samples from
+        In the same order, we set (haploid) sample sizes using a list
+        
+        """
+        assert np.all([pop in self.leaves for pop in pop_ids]), "invalid sampling population"
+        samples = msprime_functions.get_samples(self, pop_ids, sample_sizes)
+        return samples
+
+    def simulate_msprime(self, model='hudson', Ne=None,
+                         pop_ids=None, sample_sizes=None,
+                         sequence_length=None, recombination_rate=None,
+                         genetic_map=None, mutation_rate=None):
+        # XX: want to allow replicates? genetic map? what else?
+
+        pop_config, mig_mat, demo_events = msprime_from_graph(self)
+        samples = msprime_samples(self, pop_ids=pop_ids, sample_sizes=sample_sizes)
+
+        ts = msprime_functions.simulate_msprime(
+                population_configurations=pop_config,
+                migration_matrix=mig_mat, demographic_events=demo_events,
+                Ne=None, samples=samples, model=model,
+                sequence_length=None, recombination_rate=None,
+                genetic_map=None, mutation_rate=None)
+
+

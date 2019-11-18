@@ -625,36 +625,46 @@ def moments_split(fs, parent, child1, child2, lineages):
     data = copy.copy(fs)
     data.pop_ids = None
     if data.ndim == 1:
-        fs_to = moments.Manips.split_1D_to_2D(data, lineages[child1], lineages[child2])
+        fs_to = moments.Manips.split_1D_to_2D(data,
+                    lineages[child1], lineages[child2])
     elif data.ndim == 2:
         if ids_from[0] == parent:
-            fs_to = moments.Manips.split_2D_to_3D_1(data, lineages[child1], lineages[child2])
+            fs_to = moments.Manips.split_2D_to_3D_1(data,
+                        lineages[child1], lineages[child2])
         else:
-            fs_to = moments.Manips.split_2D_to_3D_2(data, lineages[child1], lineages[child2])
+            fs_to = moments.Manips.split_2D_to_3D_2(data,
+                        lineages[child1], lineages[child2])
     elif data.ndim == 3:
         if ids_from[0] == parent:
             data = np.swapaxes(data, 0, 2)
-            fs_to = moments.Manips.split_3D_to_4D_3(data, lineages[child1], lineages[child2])
+            fs_to = moments.Manips.split_3D_to_4D_3(data,
+                        lineages[child1], lineages[child2])
             data = np.swapaxes(data, 0, 2)
         elif ids_from[1] == parent:
             data = np.swapaxes(data, 1, 2)
-            fs_to = moments.Manips.split_3D_to_4D_3(data, lineages[child1], lineages[child2])
+            fs_to = moments.Manips.split_3D_to_4D_3(data,
+                        lineages[child1], lineages[child2])
             data = np.swapaxes(data, 1, 2)
         elif ids_from[2] == parent:
-            fs_to = moments.Manips.split_3D_to_4D_3(data, lineages[child1], lineages[child2])
+            fs_to = moments.Manips.split_3D_to_4D_3(data,
+                        lineages[child1], lineages[child2])
     elif data.ndim == 4:
         if ids_from[0] == parent:
             data = np.swapaxes(data, 0, 2)
-            fs_to = moments.Manips.split_4D_to_5D_3(data, lineages[child1], lineages[child2])
+            fs_to = moments.Manips.split_4D_to_5D_3(data,
+                        lineages[child1], lineages[child2])
             data = np.swapaxes(data, 0, 2)
         elif ids_from[1] == parent:
             data = np.swapaxes(data, 1, 2)
-            fs_to = moments.Manips.split_4D_to_5D_3(data, lineages[child1], lineages[child2])
+            fs_to = moments.Manips.split_4D_to_5D_3(data,
+                        lineages[child1], lineages[child2])
             data = np.swapaxes(data, 1, 2)
         elif ids_from[2] == parent:
-            fs_to = moments.Manips.split_4D_to_5D_3(data, lineages[child1], lineages[child2])
+            fs_to = moments.Manips.split_4D_to_5D_3(data,
+                        lineages[child1], lineages[child2])
         elif ids_from[3] == parent:
-            fs_to = moments.Manips.split_4D_to_5D_4(data, lineages[child1], lineages[child2])
+            fs_to = moments.Manips.split_4D_to_5D_4(data,
+                        lineages[child1], lineages[child2])
 
     ids_to = ids_from + [child2]
     ids_to[ids_from.index(parent)] = child1
@@ -679,9 +689,11 @@ def moments_merge(fs, pops_to_merge, weights, pop_to, lineages):
     pop2_ind = ids_from.index(pop2)
     # use admix_into_new, and then marginalize the parental populations
     if pop1_ind < pop2_ind:
-        data = moments.Manips.admix_into_new(data, pop1_ind, pop2_ind, lineages[pop_to], weights[0])
+        data = moments.Manips.admix_into_new(data, pop1_ind, pop2_ind,
+                    lineages[pop_to], weights[0])
     else:
-        data = moments.Manips.admix_into_new(data, pop2_ind, pop1_ind, lineages[pop_to], weights[1])
+        data = moments.Manips.admix_into_new(data, pop2_ind, pop1_ind,
+                    lineages[pop_to], weights[1])
     data.pop_ids = ids_to
     return data
 
@@ -703,18 +715,18 @@ def moments_merge(fs, pops_to_merge, weights, pop_to, lineages):
 
 
 def moments_rearrange_pops(fs, pop_order):
-    current_order = fs.pop_ids
+    curr_order = fs.pop_ids
     for i in range(len(pop_order)):
-        if current_order[i] != pop_order[i]:
-            j = current_order.index(pop_order[i])
+        if curr_order[i] != pop_order[i]:
+            j = curr_order.index(pop_order[i])
             while j > i:
                 fs = np.swapaxes(fs,j-1,j)
-                current_order[j-1], current_order[j] = current_order[j], current_order[j-1]
+                curr_order[j-1], curr_order[j] = curr_order[j], curr_order[j-1]
                 j -= 1
-    fs.pop_ids = current_order
-    if list(current_order) != list(pop_order):
+    fs.pop_ids = curr_order
+    if list(curr_order) != list(pop_order):
         print("population ordering messed up")
-        print(current_order)
+        print(curr_order)
         print(pop_order)
     return fs
 
