@@ -45,7 +45,7 @@ def msprime_from_graph(dg, Ne=None):
             Ne = dg.Ne
         else:
             print("warning: set Ne to size of root, may cause scaling issues")
-            Ne = dg.G.node['root']['nu']
+            Ne = dg.G.nodes['root']['nu']
 
     # we'll use the outputs from parsing for moments integration to walk
     # through the events as they occur backward in time
@@ -70,12 +70,12 @@ def msprime_from_graph(dg, Ne=None):
 def get_population_growth_rates(dg, Ne):
     rates = {}
     for pop in dg.G.nodes:
-        if 'nu' in dg.G.node[pop]:
+        if 'nu' in dg.G.nodes[pop]:
             rates[pop] = 0
         else:
-            nuF = dg.G.node[pop]['nuF']
-            nu0 = dg.G.node[pop]['nu0']
-            T = dg.G.node[pop]['T']
+            nuF = dg.G.nodes[pop]['nuF']
+            nu0 = dg.G.nodes[pop]['nu0']
+            T = dg.G.nodes[pop]['T']
             r = np.log(nuF/nu0) / T / 2 / Ne
             rates[pop] = r
     return rates
@@ -86,14 +86,14 @@ def get_population_configurations(dg, contemporary_pops, growth_rates, Ne):
     pop_indexes = {}
     for ii,pop in enumerate(dg.G.nodes):
         pop_indexes[pop] = ii
-        if 'nu' in dg.G.node[pop]:
+        if 'nu' in dg.G.nodes[pop]:
             pop_configs.append(
                 msprime.PopulationConfiguration(
-                    initial_size=dg.G.node[pop]['nu']*Ne))
-        elif 'nuF' in dg.G.node[pop]:
+                    initial_size=dg.G.nodes[pop]['nu']*Ne))
+        elif 'nuF' in dg.G.nodes[pop]:
             pop_configs.append(
                 msprime.PopulationConfiguration(
-                    initial_size=dg.G.node[pop]['nuF']*Ne))
+                    initial_size=dg.G.nodes[pop]['nuF']*Ne))
             if pop in contemporary_pops:
                 pop_configs[-1].growth_rate = growth_rates[pop]
         else:
@@ -107,11 +107,11 @@ def get_migration_matrix(dg, contemporary_pops, pop_indexes, Ne):
     num_pops = len(pop_indexes)
     M = [[0 for i in range(num_pops)] for j in range(num_pops)]
     for pop in contemporary_pops:
-        if 'm' in dg.G.node[pop]:
+        if 'm' in dg.G.nodes[pop]:
             ind_from = pop_indexes[pop]
-            for pop_to in dg.G.node[pop]['m']:
+            for pop_to in dg.G.nodes[pop]['m']:
                 ind_to = pop_indexes[pop_to]
-                scaled_rate = dg.G.node[pop]['m'][pop_to] / 2 / Ne
+                scaled_rate = dg.G.nodes[pop]['m'][pop_to] / 2 / Ne
                 M[ind_from][ind_to] = scaled_rate
     return M
 
@@ -173,9 +173,9 @@ def update_migration_rates(dg, t, current_pops, pop_indexes, demo_events):
     # listed in current_pops
     demo_events.append(msprime.MigrationRateChange(time=t, rate=0))
     for pop in current_pops:
-        if 'm' in dg.G.node[pop]:
-            for pop_to in dg.G.node[pop]['m']:
-                rate = dg.G.node[pop]['m'][pop_to]
+        if 'm' in dg.G.nodes[pop]:
+            for pop_to in dg.G.nodes[pop]['m']:
+                rate = dg.G.nodes[pop]['m'][pop_to]
                 demo_events.append(msprime.MigrationRateChange(time=t, 
                     rate=rate,
                     matrix_index=(pop_indexes[pop], pop_indexes[pop_to])))

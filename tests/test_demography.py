@@ -88,7 +88,7 @@ class TestGraphStructure(unittest.TestCase):
     def test_all_times_align(self):
         G = example_multiple_mergers()
         dg = demography.DemoGraph(G)
-        self.assertTrue(dg.all_merger_times_align())
+        self.assertTrue(demography.demo_class.all_merger_times_align(dg))
         G = example_multiple_mergers_mismatch()
         self.assertRaises(InvalidGraph, demography.DemoGraph, G)
 

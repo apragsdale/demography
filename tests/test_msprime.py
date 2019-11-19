@@ -36,7 +36,7 @@ class TestMsprimeFunctions(unittest.TestCase):
         self.assertTrue(growth_rates['C'] == 0)
         self.assertTrue(growth_rates['pop1'] == 0)
         self.assertTrue(growth_rates['pop2'] != 0)
-        self.assertTrue(np.isclose(3, 0.5*np.exp(growth_rates['pop2'] * 2*Ne*dg.G.node['pop2']['T'])))
+        self.assertTrue(np.isclose(3, 0.5*np.exp(growth_rates['pop2'] * 2*Ne*dg.G.nodes['pop2']['T'])))
 
     def test_pop_configs(self):
         G = test_graph()
