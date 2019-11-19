@@ -236,8 +236,3 @@ def get_accumulated_times(dg):
         leaf_times[leaf] = t
     return leaf_times
 
-
-"""
-Run msprime simulation
-"""
-

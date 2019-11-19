@@ -102,6 +102,8 @@ class DemoGraph():
 
     """
     Set of functions to check that the demography is specified properly
+    
+    Note: could split these off into functions outside of class, for readibility
     """
     def check_valid_demography(self):
         # check that there is only a single root
@@ -180,7 +182,6 @@ class DemoGraph():
         # populations with given samples. uses moments.LD
         # rho = 4*Ne*r, where r is the per base recombination rate
         # rho is either None, a signle value, or a list of rhos
-        
         y = integration.evolve_ld(self, rho=rho, theta=theta, pop_ids=pop_ids)
         return y
 
@@ -194,7 +195,7 @@ class DemoGraph():
             #set pops as leaves
         #if sample_sizes is None:
             #error
-        
+
         # set population scaled selection coefficient, if given
         if s is not None:
             gamma = 2 * dg.Ne * s
@@ -202,26 +203,30 @@ class DemoGraph():
                 h = 0.5
         else:
             gamma = None
-        
+
         if engine == 'moments':
             fs = integration.evolve_sfs_moments(self, theta=theta, 
                                                 pop_ids=pop_ids,
                                                 sample_sizes=sample_sizes,
                                                 gamma=gamma, h=h)
-        
+
         return fs
+
+    """
+    Functions to handle msprime simulation
+    """
 
     def msprime_inputs(self, Ne=None):
         # get the population_configurations, migration_matrix, and demographic
         # events to run the msprime simulation
-        pop_config, mig_mat, demo_events = msprime_functions.msprime_from_graph(self)
+        (pop_config, mig_mat,
+            demo_events) = msprime_functions.msprime_from_graph(self, Ne=Ne)
         return pop_config, mig_mat, demo_events
 
     def msprime_samples(self, pop_ids=None, sample_sizes=None):
         """
         pop_ids is the list of populations to get samples from
         In the same order, we set (haploid) sample sizes using a list
-        
         """
         assert np.all([pop in self.leaves for pop in pop_ids]), "invalid sampling population"
         samples = msprime_functions.get_samples(self, pop_ids, sample_sizes)
@@ -230,17 +235,40 @@ class DemoGraph():
     def simulate_msprime(self, model='hudson', Ne=None,
                          pop_ids=None, sample_sizes=None,
                          sequence_length=None, recombination_rate=None,
-                         genetic_map=None, mutation_rate=None):
-        # XX: want to allow replicates? genetic map? what else?
+                         recombination_map=None, mutation_rate=None,
+                         replicates=None):
+        """
+        Qs: how to handle recombination map (msprime format vs hapmap, both?)
+            
+        """
+        # check if recombination rate or genetic map is passed
+        if recombination_rate == None:
+            recombination_rate = self.recombination_rate
+        if recombination_map is not None and recombination_rate is not None:
+            raise
+        if sequence_length is None:
+            print("no sequence length set, using genetic map if given")
+            if recombination_map is not None:
+                print("one is given - but need to fix this")
+                # get end of recombination map
+                sequence_length = 1.
+            else:
+                raise
+        
+        pop_config, mig_mat, demo_events = self.msprime_inputs(Ne=Ne)
+        samples = self.msprime_samples(pop_ids=pop_ids,
+                                  sample_sizes=sample_sizes)
 
-        pop_config, mig_mat, demo_events = msprime_from_graph(self)
-        samples = msprime_samples(self, pop_ids=pop_ids, sample_sizes=sample_sizes)
+        ts = msprime.simulate(population_configurations=pop_config,
+                              migration_matrix=mig_mat,
+                              demographic_events=demo_events,
+                              samples=samples,
+                              model=model,
+                              length=sequence_length,
+                              recombination_rate=recombination_rate,
+                              mutation_rate=mutation_rate,
+                              recombination_map=recombination_map,
+                              num_replicates=replicates)
 
-        ts = msprime_functions.simulate_msprime(
-                population_configurations=pop_config,
-                migration_matrix=mig_mat, demographic_events=demo_events,
-                Ne=None, samples=samples, model=model,
-                sequence_length=None, recombination_rate=None,
-                genetic_map=None, mutation_rate=None)
-
+        return ts
 
