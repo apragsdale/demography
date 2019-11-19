@@ -502,6 +502,28 @@ def check_max_five_pops(present_pops):
     for pps in present_pops:
         assert len(pps) <= 5, """to run moments, we can't have more than five populations at any given time"""
         
+"""
+For pulse events, we have enough lineages so that the pulse migration
+approximation in moments.Manips.admix_inplace is accurate. If population 1
+pulses into population 2 with expected proportion f, and we want n1 an n2
+lineages left *after* the event, we need to keep n1_0 from before the event.
+n1_0 = n1 + E[# lineages moved] + 2*stdev(# lineages moved)
+     = n1 + f*n2 + 2*np.sqrt(n2*f*(1-f))
+and take the ceiling of this.
+"""
+
+def num_lineages_pulse_pre(n_from, n_to, f):
+    # n_from and n_to are the number of lineages after pulse
+    #n_from_pre = n_from + np.ceil(f*n_to + 2*np.sqrt(n_to*f*(1-f))) # multiplied by two because one still raised warnings
+    n_from_pre = n_from + np.ceil(n_to)
+    return int(n_from_pre)
+
+
+def num_lineages_pulse_post(n_from, n_to, f):
+    #n_from_post = n_from - np.ceil(f*n_to + 2*np.sqrt(n_to*f*(1-f)))
+    n_from_post = n_from - np.ceil(n_to)
+    return int(n_from_post)
+
 
 def get_number_needed_lineages(dg, pop_ids, sample_sizes, events):
     # for each population in dg, gives how many samples are needed in that population:
@@ -532,7 +554,13 @@ def get_number_needed_lineages(dg, pop_ids, sample_sizes, events):
                 lineages[parent1] += lineages[child]
                 lineages[parent2] += lineages[child]
             elif e[0] == 'pulse':
-                assert e[0] != 'pulse', "can't handle pulse events right now"
+                pop_from = e[1]
+                pop_to = e[2]
+                f = e[3]
+                n_from = lineages[pop_from]
+                n_to = lineages[pop_to]
+                n_from_needed = num_lineages_pulse_pre(n_from, n_to, f)
+                lineages[pop_from] = n_from_needed
             elif e[0] == 'pass':
                 parent = e[1]
                 child = e[2]
@@ -600,7 +628,7 @@ def moments_apply_events(fs, epoch_events, next_present_pops, lineages):
             elif e[0] == 'merger':
                 fs = moments_merge(fs, e[1], e[2], e[3], lineages) # pops_from, weights, pop_to
             elif e[0] == 'pulse':
-                fs = moments_pulse(fs, e[1], e[2], e[3], lineages) # pop_from, pop_to, f
+                fs = moments_pulse(fs, e[1], e[2], e[3]) # pop_from, pop_to, f
             elif e[0] == 'marginalize':
                 fs = fs.marginalize(fs.pop_ids.index(e[1])+1)
     # make sure correct order of pops for the next epoch
@@ -698,20 +726,23 @@ def moments_merge(fs, pops_to_merge, weights, pop_to, lineages):
     return data
 
 
-#def moments_pulse(fs, pop_from, pop_to, pulse_weight, lineages):
-#    """
-#    A pulse migration event
-#    Different from merger, where the two parental populations are replaced by the 
-#    admixed population.
-#    Here, pulse events keep the current populations in place.
-#    """
-#    if pop_to in fs.pop_ids:
-#        ind_from = fs.pop_ids.index(pop_from)
-#        ind_to = fs.pop_ids.index(pop_to)
-#        fs = fs.pulse_migrate(ind_from+1, ind_to+1, pulse_weight)
-#    else:
-#        print("warning: pop_to in pulse_migrate isn't in present pops")
-#    return fs
+def moments_pulse(fs, pop_from, pop_to, pulse_weight):
+    """
+    A pulse migration event
+    Different from merger, where the two parental populations are replaced by
+    the admixed population.
+    Here, pulse events keep the current populations in place.
+    """
+    if pop_to in fs.pop_ids:
+        ind_from = fs.pop_ids.index(pop_from)
+        ind_to = fs.pop_ids.index(pop_to)
+        n_from = fs.shape[ind_from] - 1
+        n_to = fs.shape[ind_to] - 1
+        n_from_post = num_lineages_pulse_post(n_from, n_to, pulse_weight)
+        fs = moments.Manips.admix_inplace(fs, ind_from, ind_to, n_from_post, pulse_weight)
+    else:
+        print("warning: pop_to in pulse_migrate isn't in present pops")
+    return fs
 
 
 def moments_rearrange_pops(fs, pop_order):

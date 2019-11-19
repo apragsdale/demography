@@ -129,7 +129,7 @@ class DemoGraph():
         y = integration.evolve_ld(self, rho=rho, theta=theta, pop_ids=pop_ids)
         return y
 
-    def SFS(self, engine='moments', pop_ids=None, sample_sizes=None, 
+    def SFS(self, pop_ids, sample_sizes, engine='moments',
             theta=1., s=None, h=None, Ne=None, u=None):
         """
         Computes the expected frequency spectrum for the given populations and
@@ -146,10 +146,6 @@ class DemoGraph():
         """
 
         # check that there are at most 3/5 populations at any time...
-        #if pop_ids is None:
-            #set pops as leaves
-        #if sample_sizes is None:
-            #error
 
         # set population scaled selection coefficient, if given
         if s is not None:

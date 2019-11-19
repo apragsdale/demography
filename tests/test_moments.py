@@ -145,6 +145,23 @@ class TestMomentsIntegration(unittest.TestCase):
         fs2.integrate(nu_func, 0.05)
         self.assertTrue(np.allclose(fs.data, fs2.data))
         
+    def test_lineages_needed_for_pulse(self):
+        for (f, n_from, n_to) in [(.01, 10, 10), (.05, 10, 100), (.1, 50, 40), (.4, 30, 30)]:
+            n_from_pre = demography.integration.num_lineages_pulse_pre(n_from, n_to, f)
+            n_from_post = demography.integration.num_lineages_pulse_post(n_from_pre, n_to, f)
+            self.assertTrue(n_from == n_from_post)
+
+    def test_pulses(self):
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('pop1', nu=1, T=.5)
+        G.add_node('pop2', nu=1, T=.5, pulse={('pop1', .1, .05), ('pop1', .5, 0.1)})
+        G.add_edges_from([('root','pop1'),('root','pop2')])
+        dg = demography.DemoGraph(G)
+        (present_pops, integration_times, nus, migration_matrices, frozen_pops,
+            selfing_rates, events) = demography.integration.get_moments_arguments(dg)
+        lineages = demography.integration.get_number_needed_lineages(dg, ['pop1','pop2'], [10, 10], events)
+        fs = dg.SFS(['pop1','pop2'], [10,10])
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsIntegration)
 
