@@ -14,6 +14,9 @@ so we'll break those out into Integration.py.
 import numpy as np
 import copy
 from collections import defaultdict
+from . import util
+import demography
+import networkx as nx
 
 try:
     import moments
@@ -331,6 +334,40 @@ def get_moments_arguments(dg):
     return present_pops, integration_times, nus, migration_matrices, frozen_pops, selfing_rates, events
 
 
+def augment_with_frozen(dg, sampled_pops):
+    """
+    For populations in sampled pops, check if all accumulated times are within
+    tol of each other. If not, extend the populations that fall short with
+    frozen populations, adding a new frozen pops that we pass.
+    What do we do with names? A: make the ancient population <name>_pre, and
+    set the frozen pop to <name>.
+    """
+    dg_out = copy.deepcopy(dg)
+    accumulated_times = util.get_accumulated_times(dg)
+    max_time = max(accumulated_times.values())
+    if np.all([abs(accumulated_times[pop]-max_time) < tol for pop in sampled_pops]):
+        return dg_out
+    else:   
+        G = dg_out.G
+        for pop in sampled_pops:
+            # check if this pop is contemporary
+            if abs(accumulated_times[pop]-max_time) < tol:
+                continue
+            else:
+                time_left = max_time - accumulated_times[pop]
+                # relabel the population node
+                pop_pre = pop + '_pre'
+                assert pop_pre not in G.nodes, "naming issue..."
+                mapping = {pop: pop_pre}
+                G = nx.relabel_nodes(G, mapping)
+                # add frozen population
+                G.add_node(pop, nu=1, T=time_left, frozen=True)
+                # add edge between ancient and frozen population
+                G.add_edge(pop_pre, pop)
+        # create dg object and add relevant attributes that were present on dg
+        dg_out = demography.DemoGraph(G, Ne=dg.Ne, mutation_rate=dg.mutation_rate)
+        return dg_out
+
 """
 Functions to evolve moments.LD to get LD statistics (no maximum number of pops)
 """
@@ -353,17 +390,21 @@ def evolve_ld(dg, rho=None, theta=None, pop_ids=None):
     Note that theta in this model is 4*Ne*u, and not scaled by L, so it would
     be on the order of 0.001 instead of 1 (for example.
     """
+    assert momentsLD_installed, "moments.LD is not installed"
+
     if theta == None:
         theta = dg.theta
     # check that theta is reasonable - warning if not
     
+    dg_sim = augment_with_frozen(dg, pop_ids)
+    
     # get the features from the dg
     # this ignores the features of the root used for initialization
     (present_pops, integration_times, nus, migration_matrices, frozen_pops,
-        selfing_rates, events) = get_moments_arguments(dg)
+        selfing_rates, events) = get_moments_arguments(dg_sim)
 
     # initialize the LD stats at the root of the demography
-    Y = ld_root_equilibrium(dg.G.nodes[dg.root]['nu'], theta, rho, dg.root)
+    Y = ld_root_equilibrium(dg_sim.G.nodes[dg.root]['nu'], theta, rho, dg.root)
     
     # step through the list of integrations and events
     for ii, (pops, T, nu, mig_mat, frozen, selfing) in enumerate(zip(
@@ -578,24 +619,30 @@ def evolve_sfs_moments(dg, theta=None, pop_ids=None,
 
     pop_ids and sample_sizes must be of same length, and in same order 
     """
+    assert moments_installed, "moments.LD is not installed"
+
     if theta == None:
         theta = dg.theta
+
+    dg_sim = augment_with_frozen(dg, pop_ids)
 
     # get the features from the dg
     # this ignores the features of the root used for initialization
     (present_pops, integration_times, nus, migration_matrices, frozen_pops,
-        selfing_rates, events) = get_moments_arguments(dg)
+        selfing_rates, events) = get_moments_arguments(dg_sim)
 
     check_max_five_pops(present_pops)
 
-    num_lineages = get_number_needed_lineages(dg, pop_ids, sample_sizes, events)
+    num_lineages = get_number_needed_lineages(dg, pop_ids, sample_sizes,
+                                              events)
     # initialize the LD stats at the root of the demography
-    fs = moments_fs_root_equilibrium(num_lineages[dg.root], nus[0][0], theta, dg.root,
-                                     gamma=gamma, h=h)
+    fs = moments_fs_root_equilibrium(num_lineages[dg_sim.root], nus[0][0], 
+                                     theta, dg_sim.root, gamma=gamma, h=h)
 
     # step through the list of integrations and events
     for ii, (pops, T, nu, mig_mat, frozen) in enumerate(zip(
-                present_pops, integration_times, nus, migration_matrices, frozen_pops)):
+                present_pops, integration_times, nus, migration_matrices,
+                frozen_pops)):
         # first get the nu_function for this epoch
         nu_epoch = get_pop_size_function(nu)
 
@@ -605,7 +652,8 @@ def evolve_sfs_moments(dg, theta=None, pop_ids=None,
 
         # apply events
         if ii < len(events):
-            fs = moments_apply_events(fs, events[ii], present_pops[ii+1], num_lineages)
+            fs = moments_apply_events(fs, events[ii], present_pops[ii+1],
+                                      num_lineages)
 
     # at the end, make sure the populations are in the right order
     if pop_ids is not None:
