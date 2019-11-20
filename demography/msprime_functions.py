@@ -16,6 +16,7 @@ except ImportError:
 
 import numpy as np
 from . import integration
+from . import util
 
 def msprime_from_graph(dg, Ne=None):
     """
@@ -207,7 +208,7 @@ def get_samples(dg, pop_ids, sample_sizes):
     Need to have the pop_indexes that the population configurations
     """
     pop_configs, pop_indexes = get_population_configurations(dg, [], {}, 1)
-    leaf_times = get_accumulated_times(dg)
+    leaf_times = util.get_accumulated_times(dg)
     max_leaf_time = max(leaf_times.values())
     samples = []
     for pop,ns in zip(pop_ids, sample_sizes):
@@ -215,24 +216,4 @@ def get_samples(dg, pop_ids, sample_sizes):
         pop_time = max_leaf_time - leaf_times[pop]
         samples.extend([msprime.Sample(pop_indexes[pop], time=pop_time)] * ns)
     return samples
-
-
-def get_one_parent(dg, child):
-    if hasattr(dg.predecessors[child], "__len__"): # from a merger, just pick one parent
-        parent = dg.predecessors[child][0]
-    else:
-        parent = dg.predecessors[child]
-    return parent
-
-
-def get_accumulated_times(dg):
-    leaf_times = {}
-    for leaf in dg.leaves:
-        t = dg.G.nodes[leaf]['T']
-        parent = get_one_parent(dg, leaf)
-        while parent is not dg.root:
-            t += dg.G.nodes[parent]['T']
-            parent = get_one_parent(dg, parent)
-        leaf_times[leaf] = t
-    return leaf_times
 

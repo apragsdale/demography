@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 import networkx as nx
 import demography
-from demography.demo_class import InvalidGraph
+from demography.util import InvalidGraph
 
 def example_graph_simple():
     G = nx.DiGraph()
@@ -88,7 +88,7 @@ class TestGraphStructure(unittest.TestCase):
     def test_all_times_align(self):
         G = example_multiple_mergers()
         dg = demography.DemoGraph(G)
-        self.assertTrue(demography.demo_class.all_merger_times_align(dg))
+        self.assertTrue(demography.util.all_merger_times_align(dg))
         G = example_multiple_mergers_mismatch()
         self.assertRaises(InvalidGraph, demography.DemoGraph, G)
 

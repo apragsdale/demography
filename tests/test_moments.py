@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 import networkx as nx
 import demography
-from demography.demo_class import InvalidGraph
+from demography.util import InvalidGraph
 
 import moments
 
@@ -120,8 +120,10 @@ class TestMomentsIntegration(unittest.TestCase):
     def test_moments_output(self):
         G = nx.DiGraph()
         G.add_node('root', nu=1, T=0)
+        G.add_node('pop1', nu=1, T=0)
+        G.add_edge('root','pop1')
         dg = demography.DemoGraph(G)
-        fs = dg.SFS(theta=1.0, pop_ids=['root'], sample_sizes=[10])
+        fs = dg.SFS(theta=1.0, pop_ids=['pop1'], sample_sizes=[10])
         self.assertTrue(np.allclose(moments.Demographics1D.snm([10]), fs))
         G = test_graph()
         dg = demography.DemoGraph(G)
@@ -162,6 +164,31 @@ class TestMomentsIntegration(unittest.TestCase):
             selfing_rates, events) = demography.integration.get_moments_arguments(dg)
         lineages = demography.integration.get_number_needed_lineages(dg, ['pop1','pop2'], [10, 10], events)
         fs = dg.SFS(['pop1','pop2'], [10,10])
+
+    def test_extending_frozen_pops(self):
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('pop1', nu=1, T=.5)
+        G.add_node('pop2', nu=1, T=.3)
+        G.add_edges_from([('root','pop1'),('root','pop2')])
+        dg = demography.DemoGraph(G)
+        dg_aug = demography.integration.augment_with_frozen(dg, ['pop1','pop2'])
+        acc_times = demography.util.get_accumulated_times(dg_aug)
+        self.assertTrue(np.all(np.array(list(acc_times.values()))-list(acc_times.values())[0] < 1e-12))
+        
+    def test_frozen_pops_sfs(self):
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('pop1', nu=1, T=.5)
+        G.add_node('pop2', nu=1, T=.3)
+        G.add_edges_from([('root','pop1'),('root','pop2')])
+        dg = demography.DemoGraph(G)
+        fs = dg.SFS(['pop1','pop2'],[20,20], theta=1)
+        fs2 = moments.Demographics1D.snm([40])
+        fs2 = moments.Manips.split_1D_to_2D(fs2, 20, 20)
+        fs2.integrate([1,1], .3)
+        fs2.integrate([1,1], .2, frozen=[False,True])
+        self.assertTrue(np.allclose(fs.data, fs2.data))
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsIntegration)
 

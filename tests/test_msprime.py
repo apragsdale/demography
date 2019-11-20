@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 import networkx as nx
 import demography
-from demography.demo_class import InvalidGraph
+from demography.util import InvalidGraph
 
 import msprime
 
