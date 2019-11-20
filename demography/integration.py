@@ -612,17 +612,15 @@ def get_number_needed_lineages(dg, pop_ids, sample_sizes, events):
 def evolve_sfs_moments(dg, theta=None, pop_ids=None, 
                        sample_sizes=None, gamma=None, h=0.5):
     """
-    integrates moments.LD along the demography, which returns an LDStats
-    object, for the given rhos, where rho=4*Ne*r.
-    Note that theta in this model is 4*Ne*u, and not scaled by L, so it would
-    be on the order of 0.001 instead of 1 (for example.
-
     pop_ids and sample_sizes must be of same length, and in same order 
     """
-    assert moments_installed, "moments.LD is not installed"
+    assert moments_installed, "moments is not installed"
 
     if theta == None:
-        theta = dg.theta
+        if dg.theta is not None:
+            theta = dg.theta
+        else:
+            theta = 1
 
     dg_sim = augment_with_frozen(dg, pop_ids)
 
@@ -813,3 +811,203 @@ def moments_rearrange_pops(fs, pop_order):
 Functions to evolve using dadi to get the frequency spectrum (max 3 pops)
 """
 
+def evolve_sfs_dadi(dg, pts, theta=None, pop_ids=None, 
+                       sample_sizes=None, gamma=None, h=0.5):
+    """
+    pop_ids and sample_sizes must be of same length, and in same order 
+    pts: either integer for number of points to use in integration (using
+         default grid), or list of three points to extrapolate over
+    
+    """
+    assert dadi_installed, "dadi is not installed"
+
+    if theta == None:
+        if dg.theta is not None:
+            theta = dg.theta
+        else:
+            theta = 1
+
+    dg_sim = augment_with_frozen(dg, pop_ids)
+
+    # get the features from the dg
+    # this ignores the features of the root used for initialization
+    (present_pops, integration_times, nus, migration_matrices, frozen_pops,
+        selfing_rates, events) = get_moments_arguments(dg_sim)
+
+    check_max_five_pops(present_pops)
+
+    num_lineages = get_number_needed_lineages(dg, pop_ids, sample_sizes,
+                                              events)
+    # initialize the LD stats at the root of the demography
+    fs = moments_fs_root_equilibrium(num_lineages[dg_sim.root], nus[0][0], 
+                                     theta, dg_sim.root, gamma=gamma, h=h)
+
+    # step through the list of integrations and events
+    for ii, (pops, T, nu, mig_mat, frozen) in enumerate(zip(
+                present_pops, integration_times, nus, migration_matrices,
+                frozen_pops)):
+        # first get the nu_function for this epoch
+        nu_epoch = get_pop_size_function(nu)
+
+        # integrate this epoch
+        fs.integrate(nu_epoch, T, theta=theta, m=mig_mat,
+                     frozen=frozen, gamma=gamma, h=h)
+
+        # apply events
+        if ii < len(events):
+            fs = moments_apply_events(fs, events[ii], present_pops[ii+1],
+                                      num_lineages)
+
+    # at the end, make sure the populations are in the right order
+    if pop_ids is not None:
+        fs = moments_rearrange_pops(fs, pop_ids)
+
+    return fs
+
+
+def moments_apply_events(fs, epoch_events, next_present_pops, lineages):
+    """
+    takes the LDstats object and applied events (such as splits, mergers,
+    pulse migrations, and marginalizations)
+    """
+    if len(epoch_events) > 0:
+        for e in epoch_events:
+            if e[0] == 'pass':
+                fs = moments_pass(fs, e[1], e[2])
+            elif e[0] == 'split':
+                fs = moments_split(fs, e[1], e[2], e[3], lineages)
+            elif e[0] == 'merger':
+                fs = moments_merge(fs, e[1], e[2], e[3], lineages) # pops_from, weights, pop_to
+            elif e[0] == 'pulse':
+                fs = moments_pulse(fs, e[1], e[2], e[3]) # pop_from, pop_to, f
+            elif e[0] == 'marginalize':
+                fs = fs.marginalize(fs.pop_ids.index(e[1])+1)
+    # make sure correct order of pops for the next epoch
+    fs = moments_rearrange_pops(fs, next_present_pops)
+    return fs
+
+
+def moments_pass(fs, pop_from, pop_to):
+    # just pass on populations, make sure keeping correct order of pop_ids
+    new_ids = []
+    for pid in fs.pop_ids:
+        if pid == pop_from:
+            new_ids.append(pop_to)
+        else:
+            new_ids.append(pid)
+    fs.pop_ids = new_ids
+    return fs
+
+
+def moments_split(fs, parent, child1, child2, lineages):
+    ids_from = fs.pop_ids
+    data = copy.copy(fs)
+    data.pop_ids = None
+    if data.ndim == 1:
+        fs_to = moments.Manips.split_1D_to_2D(data,
+                    lineages[child1], lineages[child2])
+    elif data.ndim == 2:
+        if ids_from[0] == parent:
+            fs_to = moments.Manips.split_2D_to_3D_1(data,
+                        lineages[child1], lineages[child2])
+        else:
+            fs_to = moments.Manips.split_2D_to_3D_2(data,
+                        lineages[child1], lineages[child2])
+    elif data.ndim == 3:
+        if ids_from[0] == parent:
+            data = np.swapaxes(data, 0, 2)
+            fs_to = moments.Manips.split_3D_to_4D_3(data,
+                        lineages[child1], lineages[child2])
+            data = np.swapaxes(data, 0, 2)
+        elif ids_from[1] == parent:
+            data = np.swapaxes(data, 1, 2)
+            fs_to = moments.Manips.split_3D_to_4D_3(data,
+                        lineages[child1], lineages[child2])
+            data = np.swapaxes(data, 1, 2)
+        elif ids_from[2] == parent:
+            fs_to = moments.Manips.split_3D_to_4D_3(data,
+                        lineages[child1], lineages[child2])
+    elif data.ndim == 4:
+        if ids_from[0] == parent:
+            data = np.swapaxes(data, 0, 2)
+            fs_to = moments.Manips.split_4D_to_5D_3(data,
+                        lineages[child1], lineages[child2])
+            data = np.swapaxes(data, 0, 2)
+        elif ids_from[1] == parent:
+            data = np.swapaxes(data, 1, 2)
+            fs_to = moments.Manips.split_4D_to_5D_3(data,
+                        lineages[child1], lineages[child2])
+            data = np.swapaxes(data, 1, 2)
+        elif ids_from[2] == parent:
+            fs_to = moments.Manips.split_4D_to_5D_3(data,
+                        lineages[child1], lineages[child2])
+        elif ids_from[3] == parent:
+            fs_to = moments.Manips.split_4D_to_5D_4(data,
+                        lineages[child1], lineages[child2])
+
+    ids_to = ids_from + [child2]
+    ids_to[ids_from.index(parent)] = child1
+    fs_to.pop_ids = ids_to
+    return fs_to
+
+
+def moments_merge(fs, pops_to_merge, weights, pop_to, lineages):
+    """
+    Two populations (pops_to_merge = [popA, popB]) merge (with given weights)
+    and form new population (pop_to).
+    """
+    data = copy.copy(fs)
+    data.pop_ids = None
+    pop1,pop2 = pops_to_merge
+    ids_from = fs.pop_ids
+    ids_to = copy.copy(ids_from)
+    ids_to.pop(ids_to.index(pop1))
+    ids_to.pop(ids_to.index(pop2))
+    ids_to.append(pop_to)
+    pop1_ind = ids_from.index(pop1)
+    pop2_ind = ids_from.index(pop2)
+    # use admix_into_new, and then marginalize the parental populations
+    if pop1_ind < pop2_ind:
+        data = moments.Manips.admix_into_new(data, pop1_ind, pop2_ind,
+                    lineages[pop_to], weights[0])
+    else:
+        data = moments.Manips.admix_into_new(data, pop2_ind, pop1_ind,
+                    lineages[pop_to], weights[1])
+    data.pop_ids = ids_to
+    return data
+
+
+def moments_pulse(fs, pop_from, pop_to, pulse_weight):
+    """
+    A pulse migration event
+    Different from merger, where the two parental populations are replaced by
+    the admixed population.
+    Here, pulse events keep the current populations in place.
+    """
+    if pop_to in fs.pop_ids:
+        ind_from = fs.pop_ids.index(pop_from)
+        ind_to = fs.pop_ids.index(pop_to)
+        n_from = fs.shape[ind_from] - 1
+        n_to = fs.shape[ind_to] - 1
+        n_from_post = num_lineages_pulse_post(n_from, n_to, pulse_weight)
+        fs = moments.Manips.admix_inplace(fs, ind_from, ind_to, n_from_post, pulse_weight)
+    else:
+        print("warning: pop_to in pulse_migrate isn't in present pops")
+    return fs
+
+
+def moments_rearrange_pops(fs, pop_order):
+    curr_order = fs.pop_ids
+    for i in range(len(pop_order)):
+        if curr_order[i] != pop_order[i]:
+            j = curr_order.index(pop_order[i])
+            while j > i:
+                fs = np.swapaxes(fs,j-1,j)
+                curr_order[j-1], curr_order[j] = curr_order[j], curr_order[j-1]
+                j -= 1
+    fs.pop_ids = curr_order
+    if list(curr_order) != list(pop_order):
+        print("population ordering messed up")
+        print(curr_order)
+        print(pop_order)
+    return fs
