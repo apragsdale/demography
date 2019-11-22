@@ -128,7 +128,7 @@ class DemoGraph():
         return y
 
     def SFS(self, pop_ids, sample_sizes, engine='moments',
-            theta=1., s=None, h=None, Ne=None, u=None):
+            theta=None, s=0, h=0.5, Ne=None, u=None, pts=None):
         """
         Computes the expected frequency spectrum for the given populations and
             sample sizes.
@@ -142,23 +142,30 @@ class DemoGraph():
             h (dominance coefficient)
             
         """
-
-        # check that there are at most 3/5 populations at any time...
+        if theta is None and self.Ne is None:
+            if Ne is not None and u is not None:
+                theta = 4*Ne*u
+            else:
+                theta = 1.
 
         # set population scaled selection coefficient, if given
-        if s is not None:
-            gamma = 2 * dg.Ne * s
-            if h is None:
-                h = 0.5
+        if s != 0:
+            assert Ne is not None or self.Ne is not None, "Ne or dg.Ne must be set"
+            gamma = 2 * self.Ne * s
         else:
-            gamma = None
+            gamma = 0.0
 
         if engine == 'moments':
             fs = integration.evolve_sfs_moments(self, theta=theta, 
                                                 pop_ids=pop_ids,
                                                 sample_sizes=sample_sizes,
                                                 gamma=gamma, h=h)
-
+        elif engine == 'dadi':
+            assert pts is not None, "pts must be given to integrate with dadi"
+            fs = integration.evolve_sfs_dadi(self, pts, theta=theta, 
+                                             pop_ids=pop_ids,
+                                             sample_sizes=sample_sizes,
+                                             gamma=gamma, h=h)
         return fs
 
     """

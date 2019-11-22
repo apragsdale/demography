@@ -26,7 +26,7 @@ class TestMomentsIntegration(unittest.TestCase):
     """
     Tests parsing the DemoGraph object to pass to moments.LD
     """
-    def test_expected_ld_curve(self):
+    def test_expected_sfs(self):
         pop_id = 'root'
         ns0 = 20
         nu = 1.
@@ -51,8 +51,8 @@ class TestMomentsIntegration(unittest.TestCase):
         dg = demography.DemoGraph(G)
         (present_pops, integration_times, nus, migration_matrices, frozen_pops,
             selfing_rates, events) = demography.integration.get_moments_arguments(dg)
-        self.assertRaises(AssertionError, demography.integration.check_max_five_pops, 
-                          present_pops)
+        self.assertRaises(AssertionError, demography.integration.check_max_num_pops, 
+                          present_pops, 5)
 
     def test_lineages_needed(self):
         G = test_graph()
