@@ -765,7 +765,7 @@ def moments_merge(fs, pops_to_merge, weights, pop_to, lineages):
     ids_to.append(pop_to)
     pop1_ind = ids_from.index(pop1)
     pop2_ind = ids_from.index(pop2)
-    # use admix_into_new, and then marginalize the parental populations
+    # use admix_into_new
     if pop1_ind < pop2_ind:
         data = moments.Manips.admix_into_new(data, pop1_ind, pop2_ind,
                     lineages[pop_to], weights[0])
@@ -836,7 +836,7 @@ def check_pts_sample_size(pts, sample_sizes, buffer=10):
     max_ns = np.max(sample_sizes)
     if hasattr(pts, "__len__") is False:
         pts = [pts]
-    assert np.all([pt > max_ns + buffer for pt in pts]), "pts too small"
+    assert np.all([pt >= max_ns + buffer for pt in pts]), "pts too small"
 
 
 # call different Integration functions depending on the dimension
@@ -845,13 +845,13 @@ def integrate_dadi(this_phi, this_xx, T, nu, m, gamma, h, theta, frozen):
         this_phi = dadi.Integration.one_pop(this_phi, this_xx, T, nu=nu[0],
                                  gamma=gamma, h=h, theta0=theta, frozen=frozen[0])
     elif this_phi.ndim == 2:
-        this_phi = dadi.Integration.two_pops(this_phi, this_xx, nu1=nu[0],
+        this_phi = dadi.Integration.two_pops(this_phi, this_xx, T, nu1=nu[0],
                                   nu2=nu[1], m12=m[0][1], m21=m[1][0],
                                   gamma1=gamma, gamma2=gamma, h1=h, h2=h,
                                   theta0=theta, frozen1=frozen[0],
                                   frozen2=frozen[1])
     elif this_phi.ndim == 3:
-        this_phi = dadi.Integration.three_pops(this_phi, this_xx, nu1=nu[0],
+        this_phi = dadi.Integration.three_pops(this_phi, this_xx, T, nu1=nu[0],
                                   nu2=nu[1], nu3=nu[2], m12=m[0][1], 
                                   m13=[0][2], m21=m[1][0], m23=m[1][2], 
                                   m31=m[2][0], m32=m[2][1], gamma1=gamma,
@@ -875,10 +875,12 @@ def integrate_phis(phi, xx, pts, nu, T, theta=1., m=None, frozen=None,
 
 def sample_dadi(phi, grid, pts, ns):
     if hasattr(pts, "__len__"):
-        spectra = [dadi.Spectrum.from_phi(this_phi, ns, (this_grid,)) for (this_phi, this_grid) in zip(phi,grid)]
+        spectra = [dadi.Spectrum.from_phi(this_phi, ns, 
+                                          tuple([this_grid]*this_phi.ndim)) 
+                   for (this_phi, this_grid) in zip(phi,grid)]
         fs = dadi.Numerics.quadratic_extrap(spectra, [x[1] for x in grid])
     else:
-        fs = dadi.Spectrum.from_phi(phi, ns, (grid,))
+        fs = dadi.Spectrum.from_phi(phi, ns, tuple([grid]*phi.ndim))
     return fs
 
 def evolve_sfs_dadi(dg, pts, theta=None, pop_ids=None, 
@@ -927,18 +929,19 @@ def evolve_sfs_dadi(dg, pts, theta=None, pop_ids=None,
         # apply events
         # question: does 
         if ii < len(events):
-            phi = dadi_apply_events(phi, events[ii], present_pops[ii],
-                                    present_pops[ii+1])
+            phi = dadi_apply_events(phi, grid, pts, events[ii], 
+                                    present_pops[ii], present_pops[ii+1])
 
     # rearrange so that present_pops[-1] == pop_ids
     phi = dadi_rearrange_pops(phi, present_pops[-1], pop_ids)
     spectrum = sample_dadi(phi, grid, pts, sample_sizes)
-    # if hasattr(pts, "__len__"), extrapolate
+    spectrum.pop_ids = pop_ids
 
     return spectrum
 
 
-def dadi_apply_events(phi, epoch_events, prev_present_pops, next_present_pops):
+def dadi_apply_events(phi, grid, pts, epoch_events, prev_present_pops,
+                      next_present_pops):
     """
     takes the LDstats object and applied events (such as splits, mergers,
     pulse migrations, and marginalizations)
@@ -948,16 +951,34 @@ def dadi_apply_events(phi, epoch_events, prev_present_pops, next_present_pops):
             if e[0] == 'pass':
                 phi = dadi_pass(phi, e[1], e[2], prev_present_pops,
                                next_present_pops)
-#            elif e[0] == 'split':
-#                fs = dadi_split(fs, e[1], e[2], e[3], lineages)
-#            elif e[0] == 'merger':
-#                fs = dadi_merge(fs, e[1], e[2], e[3], lineages)
+            elif e[0] == 'split':
+                phi = dadi_split(phi, grid, pts, e[1], e[2], e[3],
+                                 prev_present_pops, next_present_pops)
+            elif e[0] == 'merger':
+                phi = dadi_merge(phi, grid, pts, e[1], e[2], e[3],
+                                 prev_present_pops, next_present_pops)
 #            elif e[0] == 'pulse':
 #                fs = dadi_pulse(fs, e[1], e[2], e[3])
-#            elif e[0] == 'marginalize':
-#                fs = fs.marginalize(fs.pop_ids.index(e[1])+1)
-    # make sure correct order of pops for the next epoch
-#    fs = dadi_rearrange_pops(fs, next_present_pops)
+            elif e[0] == 'marginalize':
+                phi = dadi_marginalize(phi, grid, pts, e[1],
+                            prev_present_pops, next_present_pops)
+    return phi
+
+
+def dadi_marginalize(phi, grid, pts, pop_to_remove, prev_present_pops,
+                     next_present_pops):
+    index_to_remove = prev_present_pops.index(pop_to_remove)
+    new_ids = []
+    for pid in prev_present_pops:
+        if pid != pop_to_remove:
+            new_ids.append(pid)
+
+    if hasattr(pts, "__len__"):
+        phi = [dadi.PhiManip.remove_pop(this_phi, this_grid, index_to_remove+1)
+               for (this_phi, this_grid) in zip(phi, grid)]
+    else:
+        phi = dadi.PhiManip.remove_pop(phi, grid, index_to_remove+1)
+    phi = dadi_rearrange_pops(phi, new_ids, next_present_pops)
     return phi
 
 
@@ -969,91 +990,79 @@ def dadi_pass(phi, pop_from, pop_to, prev_present_pops, next_present_pops):
             new_ids.append(pop_to)
         else:
             new_ids.append(pid)
-    if np.all([pp == np for pp,np in zip(new_ids, next_present_pops)]):
-        return phi
-    else:
-        phi = dadi_rearrange_pops(phi, new_ids, next_present_pops)
+
+    phi = dadi_rearrange_pops(phi, new_ids, next_present_pops)
     return phi
 
 
-#def dadi_split(fs, parent, child1, child2, lineages):
-#    ids_from = fs.pop_ids
-#    data = copy.copy(fs)
-#    data.pop_ids = None
-#    if data.ndim == 1:
-#        fs_to = moments.Manips.split_1D_to_2D(data,
-#                    lineages[child1], lineages[child2])
-#    elif data.ndim == 2:
-#        if ids_from[0] == parent:
-#            fs_to = moments.Manips.split_2D_to_3D_1(data,
-#                        lineages[child1], lineages[child2])
-#        else:
-#            fs_to = moments.Manips.split_2D_to_3D_2(data,
-#                        lineages[child1], lineages[child2])
-#    elif data.ndim == 3:
-#        if ids_from[0] == parent:
-#            data = np.swapaxes(data, 0, 2)
-#            fs_to = moments.Manips.split_3D_to_4D_3(data,
-#                        lineages[child1], lineages[child2])
-#            data = np.swapaxes(data, 0, 2)
-#        elif ids_from[1] == parent:
-#            data = np.swapaxes(data, 1, 2)
-#            fs_to = moments.Manips.split_3D_to_4D_3(data,
-#                        lineages[child1], lineages[child2])
-#            data = np.swapaxes(data, 1, 2)
-#        elif ids_from[2] == parent:
-#            fs_to = moments.Manips.split_3D_to_4D_3(data,
-#                        lineages[child1], lineages[child2])
-#    elif data.ndim == 4:
-#        if ids_from[0] == parent:
-#            data = np.swapaxes(data, 0, 2)
-#            fs_to = moments.Manips.split_4D_to_5D_3(data,
-#                        lineages[child1], lineages[child2])
-#            data = np.swapaxes(data, 0, 2)
-#        elif ids_from[1] == parent:
-#            data = np.swapaxes(data, 1, 2)
-#            fs_to = moments.Manips.split_4D_to_5D_3(data,
-#                        lineages[child1], lineages[child2])
-#            data = np.swapaxes(data, 1, 2)
-#        elif ids_from[2] == parent:
-#            fs_to = moments.Manips.split_4D_to_5D_3(data,
-#                        lineages[child1], lineages[child2])
-#        elif ids_from[3] == parent:
-#            fs_to = moments.Manips.split_4D_to_5D_4(data,
-#                        lineages[child1], lineages[child2])
-#
-#    ids_to = ids_from + [child2]
-#    ids_to[ids_from.index(parent)] = child1
-#    fs_to.pop_ids = ids_to
-#    return fs_to
-#
-#
-#def dadi_merge(fs, pops_to_merge, weights, pop_to, lineages):
-#    """
-#    Two populations (pops_to_merge = [popA, popB]) merge (with given weights)
-#    and form new population (pop_to).
-#    """
-#    data = copy.copy(fs)
-#    data.pop_ids = None
-#    pop1,pop2 = pops_to_merge
-#    ids_from = fs.pop_ids
-#    ids_to = copy.copy(ids_from)
-#    ids_to.pop(ids_to.index(pop1))
-#    ids_to.pop(ids_to.index(pop2))
-#    ids_to.append(pop_to)
-#    pop1_ind = ids_from.index(pop1)
-#    pop2_ind = ids_from.index(pop2)
-#    # use admix_into_new, and then marginalize the parental populations
-#    if pop1_ind < pop2_ind:
-#        data = moments.Manips.admix_into_new(data, pop1_ind, pop2_ind,
-#                    lineages[pop_to], weights[0])
-#    else:
-#        data = moments.Manips.admix_into_new(data, pop2_ind, pop1_ind,
-#                    lineages[pop_to], weights[1])
-#    data.pop_ids = ids_to
-#    return data
-#
-#
+def dadi_split(phi, grid, pts, parent, child1, child2, prev_present_pops,
+               next_present_pops):
+    if hasattr(pts, "__len__"):
+        if phi[0].ndim == 1:
+            phi = [dadi.PhiManip.phi_1D_to_2D(this_grid, this_phi) for 
+                   this_grid, this_phi in zip(grid,phi)]
+            new_ids = [child1, child2]
+        elif phi[0].ndim == 2:
+            if prev_present_pops[0] == parent:
+                phi = [dadi.PhiManip.phi_2D_to_3D_split_1(this_grid, this_phi)
+                       for this_grid, this_phi in zip(grid,phi)]
+            else:
+                phi = [dadi.PhiManip.phi_2D_to_3D_split_2(this_grid, this_phi)
+                       for this_grid, this_phi in zip(grid,phi)]
+            new_ids = prev_present_pops + [child2]
+            new_ids[prev_present_pops.index(parent)] = child1
+    else:
+        if phi.ndim == 1:
+            phi = dadi.PhiManip.phi_1D_to_2D(grid, phi)
+            new_ids = [child1, child2]
+        elif phi.ndim == 2:
+            if prev_present_pops[0] == parent:
+                phi = dadi.PhiManip.phi_2D_to_3D_split_1(grid, phi)
+            else:
+                phi = dadi.PhiManip.phi_2D_to_3D_split_2(grid, phi)
+            new_ids = prev_present_pops + [child2]
+            new_ids[prev_present_pops.index(parent)] = child1
+
+    phi = dadi_rearrange_pops(phi, new_ids, next_present_pops)
+    return phi
+
+
+def dadi_merge(phi, grid, pts, pops_to_merge, weights, pop_to,
+               prev_present_pops, next_present_pops):
+    """
+    Two populations (pops_to_merge = [popA, popB]) merge (with given weights)
+    and form new population (pop_to).
+
+    If two populations, create the third pop and and then marginalize the
+    first two.
+
+    If three populations to start, places new merged pop in place of one of
+    the populations, and we marginalize the other.
+    """
+    pop1,pop2 = pops_to_merge
+    if len(prev_present_pops) == 2:
+        if prev_present_pops[0] == pop1:
+            f = weights[0]
+        elif prev_present_pops[0] == pop2:
+            f = weights[1]
+        # end up with one pop
+        if hasattr(pts, "__len__"):
+            for ii,(this_phi, this_grid) in enumerate(zip(phi, grid)):
+                this_phi = dadi.PhiManip.phi_2D_to_3D_admix(this_phi, f,
+                                    this_grid, this_grid, this_grid)
+                this_phi = dadi.PhiManip.remove_pop(this_phi, this_grid, 1)
+                this_phi = dadi.PhiManip.remove_pop(this_phi, this_grid, 1)
+                phi[ii] = this_phi
+        else:
+            phi3 = dadi.PhiManip.phi_2D_to_3D_admix(phi, f,
+                                    grid, grid, grid)
+            phi2 = dadi.PhiManip.remove_pop(phi3, grid, 1)
+            phi1 = dadi.PhiManip.remove_pop(phi2, grid, 1)
+    elif len(prev_present_pops) == 3:
+        pass
+    return phi
+
+
 #def dadi_pulse(fs, pop_from, pop_to, pulse_weight):
 #    """
 #    A pulse migration event

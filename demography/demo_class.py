@@ -103,6 +103,7 @@ class DemoGraph():
     Functions to simulate or evolve over the demography to get expecte
     site frequency spectrum or linkage disequilibrium statistics.
     """
+
     def get_theta(self):
         """
         
@@ -167,6 +168,7 @@ class DemoGraph():
                                              sample_sizes=sample_sizes,
                                              gamma=gamma, h=h)
         return fs
+
 
     """
     Functions to handle msprime simulation
