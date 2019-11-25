@@ -182,6 +182,19 @@ class TestMomentsIntegration(unittest.TestCase):
         fs_moments = dg.SFS(['pop3'], [10], engine='moments')
         self.assertTrue(np.allclose(fs_dadi, fs_moments, .006))
 
+    def test_merge_three_pops(self):
+        pass
+        
+
+    def test_pulse_two_pop(self):
+        pass
+
+    def test_test_graph(self):
+        G = test_graph()
+        dg = demography.DemoGraph(G)
+        fs_dadi = dg.SFS(['pop1', 'pop2'], [4,4], engine='dadi', pts=[10,20,30])
+        fs_moments = dg.SFS(['pop1', 'pop2'], [4,4], engine='moments')
+        self.assertTrue(np.allclose(fs_dadi, fs_moments, 0.2))
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsIntegration)
 

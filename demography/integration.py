@@ -816,73 +816,6 @@ def moments_rearrange_pops(fs, pop_order):
 Functions to evolve using dadi to get the frequency spectrum (max 3 pops)
 """
 
-def get_dadi_grid(pts):
-    if hasattr(pts, "__len__"):
-        xx = [dadi.Numerics.default_grid(pt) for pt in pts]
-    else:
-        xx = dadi.Numerics.default_grid(pts)
-    return xx
-
-def dadi_root_equilibrium(pts, xx, nu=1.0, theta=1.0, gamma=0.0, h=0.5):
-    if hasattr(pts, "__len__"):
-        phi = [dadi.PhiManip.phi_1D(x, nu=nu, theta0=theta, gamma=gamma, h=h)
-               for x in xx]
-    else:
-        phi = dadi.PhiManip.phi_1D(xx, nu=nu, theta0=theta, gamma=gamma, h=h)
-    return phi
-
-
-def check_pts_sample_size(pts, sample_sizes, buffer=10):
-    max_ns = np.max(sample_sizes)
-    if hasattr(pts, "__len__") is False:
-        pts = [pts]
-    assert np.all([pt >= max_ns + buffer for pt in pts]), "pts too small"
-
-
-# call different Integration functions depending on the dimension
-def integrate_dadi(this_phi, this_xx, T, nu, m, gamma, h, theta, frozen):
-    if this_phi.ndim == 1:
-        this_phi = dadi.Integration.one_pop(this_phi, this_xx, T, nu=nu[0],
-                                 gamma=gamma, h=h, theta0=theta, frozen=frozen[0])
-    elif this_phi.ndim == 2:
-        this_phi = dadi.Integration.two_pops(this_phi, this_xx, T, nu1=nu[0],
-                                  nu2=nu[1], m12=m[0][1], m21=m[1][0],
-                                  gamma1=gamma, gamma2=gamma, h1=h, h2=h,
-                                  theta0=theta, frozen1=frozen[0],
-                                  frozen2=frozen[1])
-    elif this_phi.ndim == 3:
-        this_phi = dadi.Integration.three_pops(this_phi, this_xx, T, nu1=nu[0],
-                                  nu2=nu[1], nu3=nu[2], m12=m[0][1], 
-                                  m13=[0][2], m21=m[1][0], m23=m[1][2], 
-                                  m31=m[2][0], m32=m[2][1], gamma1=gamma,
-                                  gamma2=gamma, gamma3=gamma, h1=h, h2=h,
-                                  h3=h, theta0=theta, frozen1=frozen[0], 
-                                  frozen2=frozen[1], frozen3=frozen[2])
-    else:
-        raise Exception("phi dimension cannot be larger than three")
-    return this_phi
-
-def integrate_phis(phi, xx, pts, nu, T, theta=1., m=None, frozen=None,
-                   gamma=0, h=0.5):
-    if hasattr(pts, "__len__"):
-        for ii, (this_phi, this_xx) in enumerate(zip(phi, xx)):
-            phi[ii] = integrate_dadi(this_phi, this_xx, T, nu, m, gamma, h,
-                                     theta, frozen)
-    else:
-        phi = integrate_dadi(phi, xx, T, nu, m, gamma, h, theta, frozen)
-    return phi
-
-
-def sample_dadi(phi, grid, pts, ns):
-    if hasattr(pts, "__len__"):
-        spectra = [dadi.Spectrum.from_phi(this_phi, ns, 
-                                          tuple([this_grid]*this_phi.ndim)) 
-                   for (this_phi, this_grid) in zip(phi,grid)]
-        fs = dadi.Numerics.quadratic_extrap(spectra, [x[1] for x in grid])
-    else:
-        fs = dadi.Spectrum.from_phi(phi, ns, tuple([grid]*phi.ndim))
-    return fs
-
 def evolve_sfs_dadi(dg, pts, theta=None, pop_ids=None, 
                        sample_sizes=None, gamma=None, h=0.5):
     """
@@ -893,7 +826,7 @@ def evolve_sfs_dadi(dg, pts, theta=None, pop_ids=None,
     """
     assert dadi_installed, "dadi is not installed"
     
-    check_pts_sample_size(pts, sample_sizes)
+    check_pts_sample_size(pts, sample_sizes, buffer=5)
 
     if theta == None:
         if dg.theta is not None:
@@ -940,6 +873,74 @@ def evolve_sfs_dadi(dg, pts, theta=None, pop_ids=None,
     return spectrum
 
 
+def get_dadi_grid(pts):
+    if hasattr(pts, "__len__"):
+        xx = [dadi.Numerics.default_grid(pt) for pt in pts]
+    else:
+        xx = dadi.Numerics.default_grid(pts)
+    return xx
+
+def dadi_root_equilibrium(pts, xx, nu=1.0, theta=1.0, gamma=0.0, h=0.5):
+    if hasattr(pts, "__len__"):
+        phi = [dadi.PhiManip.phi_1D(x, nu=nu, theta0=theta, gamma=gamma, h=h)
+               for x in xx]
+    else:
+        phi = dadi.PhiManip.phi_1D(xx, nu=nu, theta0=theta, gamma=gamma, h=h)
+    return phi
+
+
+def check_pts_sample_size(pts, sample_sizes, buffer=10):
+    max_ns = np.max(sample_sizes)
+    if hasattr(pts, "__len__") is False:
+        pts = [pts]
+    assert np.all([pt >= max_ns + buffer for pt in pts]), "pts too small"
+
+
+# call different Integration functions depending on the dimension
+def integrate_dadi(this_phi, this_xx, T, nu, m, gamma, h, theta, frozen):
+    if this_phi.ndim == 1:
+        this_phi = dadi.Integration.one_pop(this_phi, this_xx, T, nu=nu[0],
+                                 gamma=gamma, h=h, theta0=theta, frozen=frozen[0])
+    elif this_phi.ndim == 2:
+        this_phi = dadi.Integration.two_pops(this_phi, this_xx, T, nu1=nu[0],
+                                  nu2=nu[1], m12=m[0][1], m21=m[1][0],
+                                  gamma1=gamma, gamma2=gamma, h1=h, h2=h,
+                                  theta0=theta, frozen1=frozen[0],
+                                  frozen2=frozen[1])
+    elif this_phi.ndim == 3:
+        this_phi = dadi.Integration.three_pops(this_phi, this_xx, T, nu1=nu[0],
+                                  nu2=nu[1], nu3=nu[2], m12=m[0][1], 
+                                  m13=m[0][2], m21=m[1][0], m23=m[1][2], 
+                                  m31=m[2][0], m32=m[2][1], gamma1=gamma,
+                                  gamma2=gamma, gamma3=gamma, h1=h, h2=h,
+                                  h3=h, theta0=theta, frozen1=frozen[0], 
+                                  frozen2=frozen[1], frozen3=frozen[2])
+    else:
+        raise Exception("phi dimension cannot be larger than three")
+    return this_phi
+
+def integrate_phis(phi, xx, pts, nu, T, theta=1., m=None, frozen=None,
+                   gamma=0, h=0.5):
+    if hasattr(pts, "__len__"):
+        for ii, (this_phi, this_xx) in enumerate(zip(phi, xx)):
+            phi[ii] = integrate_dadi(this_phi, this_xx, T, nu, m, gamma, h,
+                                     theta, frozen)
+    else:
+        phi = integrate_dadi(phi, xx, T, nu, m, gamma, h, theta, frozen)
+    return phi
+
+
+def sample_dadi(phi, grid, pts, ns):
+    if hasattr(pts, "__len__"):
+        spectra = [dadi.Spectrum.from_phi(this_phi, ns, 
+                                          tuple([this_grid]*this_phi.ndim)) 
+                   for (this_phi, this_grid) in zip(phi,grid)]
+        fs = dadi.Numerics.quadratic_extrap(spectra, [x[1] for x in grid])
+    else:
+        fs = dadi.Spectrum.from_phi(phi, ns, tuple([grid]*phi.ndim))
+    return fs
+
+
 def dadi_apply_events(phi, grid, pts, epoch_events, prev_present_pops,
                       next_present_pops):
     """
@@ -957,8 +958,9 @@ def dadi_apply_events(phi, grid, pts, epoch_events, prev_present_pops,
             elif e[0] == 'merger':
                 phi = dadi_merge(phi, grid, pts, e[1], e[2], e[3],
                                  prev_present_pops, next_present_pops)
-#            elif e[0] == 'pulse':
-#                fs = dadi_pulse(fs, e[1], e[2], e[3])
+            elif e[0] == 'pulse':
+                phi = dadi_pulse(phi, grid, pts, e[1], e[2], e[3],
+                                 prev_present_pops, next_present_pops)
             elif e[0] == 'marginalize':
                 phi = dadi_marginalize(phi, grid, pts, e[1],
                             prev_present_pops, next_present_pops)
@@ -1054,34 +1056,143 @@ def dadi_merge(phi, grid, pts, pops_to_merge, weights, pop_to,
                 this_phi = dadi.PhiManip.remove_pop(this_phi, this_grid, 1)
                 phi[ii] = this_phi
         else:
-            phi3 = dadi.PhiManip.phi_2D_to_3D_admix(phi, f,
+            phi = dadi.PhiManip.phi_2D_to_3D_admix(phi, f,
                                     grid, grid, grid)
-            phi2 = dadi.PhiManip.remove_pop(phi3, grid, 1)
-            phi1 = dadi.PhiManip.remove_pop(phi2, grid, 1)
+            phi = dadi.PhiManip.remove_pop(phi, grid, 1)
+            phi = dadi.PhiManip.remove_pop(phi, grid, 1)
     elif len(prev_present_pops) == 3:
-        pass
+        # need to admix one into the other and then marginalize the unadmixed
+        # we'll admix pop2 into pop1 with weight weights[1]
+        # then we'll remove pop2 index, left with merged pop in place of pop1
+        # use dadi_pulse for the first part
+
+        # pulse pop2 into pop1, leaving order unchanged
+        phi = dadi_pulse(phi, grid, pts, pop2, pop1, weights[1],
+                         prev_present_pops, prev_present_pops)
+
+        # get the new_ids after marginalizing pop2
+        ind_to_remove = prev_present_pops.index(pop2)
+        new_ids = [pop for pop in prev_present_pops if pop != pop2]
+
+        # marginalize
+        phi = dadi_marginalize(phi, grid, pts, pop2, prev_present_pops,
+                     new_ids)
+
+        new_ids[new_ids.index(pop1)] = pop_to        
+        # reorder so the new ids are in correct order for next_present_pops
+        phi = dadi_rearrange_pops(phi, new_ids, next_present_pops)
     return phi
 
 
-#def dadi_pulse(fs, pop_from, pop_to, pulse_weight):
-#    """
-#    A pulse migration event
-#    Different from merger, where the two parental populations are replaced by
-#    the admixed population.
-#    Here, pulse events keep the current populations in place.
-#    """
-#    if pop_to in fs.pop_ids:
-#        ind_from = fs.pop_ids.index(pop_from)
-#        ind_to = fs.pop_ids.index(pop_to)
-#        n_from = fs.shape[ind_from] - 1
-#        n_to = fs.shape[ind_to] - 1
-#        n_from_post = num_lineages_pulse_post(n_from, n_to, pulse_weight)
-#        fs = moments.Manips.admix_inplace(fs, ind_from, ind_to, n_from_post, pulse_weight)
-#    else:
-#        print("warning: pop_to in pulse_migrate isn't in present pops")
-#    return fs
-#
-#
+def dadi_pulse(phi, grid, pts, pop_from, pop_to, pulse_weight,
+                                 prev_present_pops, next_present_pops):
+    """
+    A pulse migration event
+    Different from merger, where the two parental populations are replaced by
+    the admixed population.
+    Here, pulse events keep the current populations in place.
+    """
+    assert np.all(prev_present_pops == next_present_pops)
+    if pop_to in prev_present_pops:
+        ind_from = prev_present_pops.index(pop_from)
+        ind_to = prev_present_pops.index(pop_to)
+        if len(prev_present_pops) == 2:
+            if ind_from == 0 and ind_to == 1: 
+                # pulse 1 into 2
+                if hasattr(pts, "__len__"):
+                    phi = [dadi.PhiManip.phi_2D_admix_1_into_2(this_phi,
+                                pulse_weight, this_grid, this_grid)
+                           for this_phi, this_grid in zip(phi,grid)]
+                else:
+                    phi = dadi.PhiManip.phi_2D_admix_1_into_2(phi,
+                                pulse_weight, grid, grid)
+            elif ind_from == 1 and ind_to == 0:
+                # pulse 2 into 1
+                if hasattr(pts, "__len__"):
+                    phi = [dadi.PhiManip.phi_2D_admix_2_into_1(this_phi,
+                                pulse_weight, this_grid, this_grid)
+                           for this_phi, this_grid in zip(phi,grid)]
+                else:
+                    phi = dadi.PhiManip.phi_2D_admix_2_into_1(phi,
+                                pulse_weight, grid, grid)
+        elif len(prev_present_pops) == 3:
+            if ind_from == 0 and ind_to == 1:
+                # pulse 1 into 2
+                # (phi, f1,f3, xx,yy,zz), f1=pulse_weight, f3=0
+                if hasattr(pts, "__len__"):
+                    phi = [dadi.PhiManip.phi_3D_admix_1_and_3_into_2(this_phi,
+                                pulse_weight, 0, this_grid, this_grid,
+                                this_grid)
+                           for this_phi, this_grid in zip(phi,grid)]
+                else:
+                    phi = dadi.PhiManip.phi_3D_admix_1_and_3_into_2(phi,
+                                pulse_weight, 0, grid, grid, grid)
+            elif ind_from == 0 and ind_to == 2:
+                # pulse 1 into 3
+                # (phi, f1,f2, xx,yy,zz), f1=pulse_weight, f2=0
+                if hasattr(pts, "__len__"):
+                    phi = [dadi.PhiManip.phi_3D_admix_1_and_2_into_3(this_phi,
+                                pulse_weight, 0, this_grid, this_grid,
+                                this_grid)
+                           for this_phi, this_grid in zip(phi,grid)]
+                else:
+                    phi = dadi.PhiManip.phi_3D_admix_1_and_2_into_3(phi,
+                                pulse_weight, 0, grid, grid, grid)
+                
+            elif ind_from == 1 and ind_to == 0:
+                # pulse 2 into 1
+                # (phi, f2,f3, xx,yy,zz), f2=pulse_weight, f3=0
+                if hasattr(pts, "__len__"):
+                    phi = [dadi.PhiManip.phi_3D_admix_2_and_3_into_1(this_phi,
+                                pulse_weight, 0, this_grid, this_grid,
+                                this_grid)
+                           for this_phi, this_grid in zip(phi,grid)]
+                else:
+                    phi = dadi.PhiManip.phi_3D_admix_2_and_3_into_1(phi,
+                                pulse_weight, 0, grid, grid, grid)
+                
+            elif ind_from == 1 and ind_to == 2:
+                # pulse 2 into 3
+                # (phi, f1,f2, xx,yy,zz), f1=0, f2=pulse_weight
+                if hasattr(pts, "__len__"):
+                    phi = [dadi.PhiManip.phi_3D_admix_1_and_2_into_3(this_phi,
+                                0, pulse_weight, this_grid, this_grid,
+                                this_grid)
+                           for this_phi, this_grid in zip(phi,grid)]
+                else:
+                    phi = dadi.PhiManip.phi_3D_admix_1_and_2_into_3(phi,
+                                0, pulse_weight, grid, grid, grid)
+                
+            elif ind_from == 2 and ind_to == 0:
+                # pulse 3 into 1
+                # (phi, f2,f3, xx,yy,zz), f2=0, f3=pulse_weight
+                if hasattr(pts, "__len__"):
+                    phi = [dadi.PhiManip.phi_3D_admix_2_and_3_into_1(this_phi,
+                                0, pulse_weight, this_grid, this_grid,
+                                this_grid)
+                           for this_phi, this_grid in zip(phi,grid)]
+                else:
+                    phi = dadi.PhiManip.phi_3D_admix_2_and_3_into_1(phi,
+                                0, pulse_weight, grid, grid, grid)
+                
+            elif ind_from == 2 and int_to == 1:
+                # pulse 3 into 2
+                # (phi, f1,f3, xx,yy,zz), f1=0, f3=pulse_weight
+                if hasattr(pts, "__len__"):
+                    phi = [dadi.PhiManip.phi_3D_admix_1_and_3_into_2(this_phi,
+                                0, pulse_weight, this_grid, this_grid,
+                                this_grid)
+                           for this_phi, this_grid in zip(phi,grid)]
+                else:
+                    phi = dadi.PhiManip.phi_3D_admix_1_and_3_into_2(phi,
+                                0, pulse_weight, grid, grid, grid)
+                
+    else:
+        print(f"warning: {pop_to} isn't in present pops, cannot pulse migrate")
+    
+    return phi
+
+
 def dadi_rearrange_pops(phi, curr_order, pop_order):
     """
     swap axes to get this pop order to match next_pop_order
