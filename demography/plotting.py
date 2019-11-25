@@ -19,8 +19,6 @@ text_box_style = dict(facecolor='none', edgecolor='darkblue',
                       boxstyle='round,pad=0.25', linewidth=1)
 
 
-padding = 0.1
-
 def fill_intervals(dg, intervals, pop):
     for succ in dg.successors[pop]:
         if succ not in intervals:
@@ -83,7 +81,7 @@ def get_merger_order(node, dg, pop_locations):
     # if more positive, goes on left. if more negative, goes on right
     return sorted(vals, key=vals.get)[::-1]
     
-def draw_successors(ax, node, dg, intervals, pops_drawn, pop_locations):
+def draw_successors(ax, node, dg, intervals, pops_drawn, pop_locations, padding):
     # if a child is not drawn, draw it
     # note that the leaves should already be drawn, because we don't want to
     # call this on the leaves
@@ -98,7 +96,7 @@ def draw_successors(ax, node, dg, intervals, pops_drawn, pop_locations):
             continue
         
         # draw the child's children
-        draw_successors(ax, child, dg, intervals, pops_drawn, pop_locations)
+        draw_successors(ax, child, dg, intervals, pops_drawn, pop_locations, padding)
         
         # now we can draw this child node
         # if it's passed on (only one successor, which has only one parent),
@@ -157,16 +155,41 @@ def draw_edge(ax, edge, dg, pop_locations, offset=0.005, buffer=0.03):
     if annot == True:
         ax.annotate(
             f'{weight}', xy=(np.mean([x_from, x_to]), np.mean([y_from, y_to])), xycoords='data',
-            xytext=(5, 0), textcoords='offset points')
+            xytext=(4, 0), textcoords='offset points', fontsize=8)
 
 
-def draw_pulses():
-    pass
+def draw_pulses(ax, dg, pop_locations, offset):
+    for pop_from in dg.G.nodes:
+        if 'pulse' in dg.G.nodes[pop_from]:
+            for pulse_info in dg.G.nodes[pop_from]['pulse']:
+                pop_to = pulse_info[0]
+                weight = pulse_info[2]
+                x_from, y_from = pop_locations[pop_from]
+                x_to, y_to = pop_locations[pop_to]
+                if x_from < x_to:
+                    x_from += offset
+                    x_to -= offset
+                else:
+                    x_from -= offset
+                    x_to += offset
+                ax.annotate(
+                    '', xy=(x_to, y_to), xycoords='data',
+                    xytext=(x_from, y_from), textcoords='data',
+                    arrowprops={'arrowstyle': '->', 'ls': 'dashed'})
+                ax.annotate(
+                    f'{weight}', xy=(np.mean([x_from, x_to]), 
+                                     np.mean([y_from, y_to])),
+                    xycoords='data',
+                    xytext=(0, 3), textcoords='offset points', fontsize=8)
 
 
 def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
-               show_pulses=True, show=False):
+               show_pulses=True, show=False, offset=0.02, padding=0.05):
     """
+    This function is mostly useful for debugging and visualizing the topology of
+    the demography, with all populations labeled. For a nicer visualizing, use
+    plot_demography below.
+
     Ignores population sizes and continuous migration rates, just plots the
     relationships between populations in the DemoGraph. Arrows indicate splits,
     mergers, and pulse migration events, with fraction of contributions shown
@@ -185,7 +208,7 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
     """
     assert leaf_order is not None
     assert [l in dg.leaves for l in leaf_order], "if leaf_order given, must include all leaves"
-    assert not ax != None and show == True, "cannot show plot if passing axis"
+    assert not ax == None or show == False, "cannot show plot if passing axis"
     
     pops_drawn = {}
     pop_locations = {}
@@ -219,23 +242,25 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
         draw_node(ax, x, y, l, dg, pops_drawn, pop_locations)
     
     # fill in to root
-    draw_successors(ax, dg.root, dg, intervals, pops_drawn, pop_locations)
+    draw_successors(ax, dg.root, dg, intervals, pops_drawn, pop_locations, padding)
     
     # annotate with arrows
     for edge in dg.G.edges:
         draw_edge(ax, edge, dg, pop_locations)
     
     if show_pulses:
-        draw_pulses()
+        draw_pulses(ax, dg, pop_locations, offset)
     
     ax.set_xticks([])
     ax.set_yticks([])
     
     if show == False:
-        return fig
+        return ax
     else:
         fig.tight_layout()
         plt.show()
+
+
 
 def plot_demography():
     """

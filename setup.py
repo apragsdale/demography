@@ -10,17 +10,16 @@ for arg in sys.argv:
 
 from distutils.core import setup
 from distutils.extension import Extension
-from Cython.Build import cythonize
-from Cython.Distutils import build_ext
+# from Cython.Build import cythonize
+# from Cython.Distutils import build_ext
 import numpy as np
 
 numpy.distutils.core.setup(name='demography',
-                           version='0.1',
+                           version='0.0.1',
                            author='Aaron Ragsdale',
                            author_email='aaron.ragsdale@mail.mcgill.ca',
-                           url='http://simongravel.lab.mcgill.ca/Home.html',
+                           url='',
                            packages=['demography'],
-                           #package_data = {'tests':['IM.fs']},
                            license='BSD'
                            )
 
