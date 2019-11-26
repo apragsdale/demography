@@ -1,92 +1,60 @@
 # Demography
 
-Repository for Demography Building as graphical objects.
+Repository for Demography Building as graphical objects, a Python package.
 
-Demographies are encoded as directed acyclic graphs using networkx,
-which can then be passed to various simulation engines to simulate
-or integrate over.
+Demographies are encoded as directed acyclic graphs using `networkx`,
+which are then parsed as a demography object. From that demography
+object, we can call various simulation engines to either return 
+simulated sequences or expectations for common summary statistics
+used in inference.
+
+Right now, we have support for running simulations over the demography
+using `msprime` (https://msprime.readthedocs.io/en/stable/), which
+simulates sequences under either the Hudson or Discrete Time Wright Fisher
+models. We can also get the expected site frequency spectrum (SFS) using
+either `moments` () or `dadi` (), and expected multi-population linkage
+disequlibrium statistics (LD) using `moments.LD`.
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+This will get you up and running, after cloning this repository.
 
-### Prerequisites
-
-What things you need to install the software and how to install them
-
+We first need to install the dependencies.
+If this is not your first Python excursion, you will already have most
+installed, including `numpy`, `collections`, and `matplotlib`. These basic
+requirements can be installed from the requirements.txt file, using either
+conda:
 ```
-Give examples
+conda install --file requirements.txt
 ```
-
-### Installing
-
-A step by step series of examples that tell you how to get a development env running
-
-Say what the step will be
-
+or pip:
 ```
-Give the example
+pip install -r requirements.txt
 ```
 
-And repeat
+To run simulations using `msprime`, we'll need to 
 
-```
-until finished
-```
-
-End with an example of getting some data out of the system or using it for a little demo
 
 ## Running the tests
 
-Explain how to run the automated tests for this system
-
-### Break down into end to end tests
-
-Explain what these tests test and why
-
+Once all of these are installed and ready to go, let's run the tests to make
+sure everything went smoothly. In the tests directory (`cd tests`):
 ```
-Give an example
+python run_tests.py
 ```
+Everything should come out ok.
 
-### And coding style tests
+## Building a Demography
 
-Explain what these tests test and why
 
-```
-Give an example
-```
+### Examples
 
-## Deployment
 
-Add additional notes about how to deploy this on a live system
+## Computing summary statistics
 
-## Built With
 
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
+## Running simulations
 
-## Contributing
 
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
-
-## Authors
-
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
-
-## Acknowledgments
-
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc
+## Plotting Demography objects
 
