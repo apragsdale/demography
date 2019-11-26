@@ -194,7 +194,7 @@ class DemoGraph():
             demo_events) = msprime_functions.msprime_from_graph(self, Ne=Ne)
         return pop_config, mig_mat, demo_events
 
-    def msprime_samples(self, pop_ids=None, sample_sizes=None):
+    def msprime_samples(self, pop_ids, sample_sizes):
         """
         Inputs:
             pop_ids is the list of populations to get samples from
@@ -204,6 +204,7 @@ class DemoGraph():
             list of samples for msprime
         """
         assert np.all([pop in self.leaves for pop in pop_ids]), "invalid sampling population"
+        assert len(pop_ids) == len(sample_sizes), "pop_ids and sample_sizes must have same length"
         samples = msprime_functions.get_samples(self, pop_ids, sample_sizes)
         return samples
 

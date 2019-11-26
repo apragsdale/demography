@@ -531,6 +531,7 @@ def ld_rearrange_pops(Y, pop_order):
 Functions to evolve using moments to get the frequency spectrum (max 5 pops)
 """
 
+### this should be fixed for when nu != 1 to not have to integrate out
 def moments_fs_root_equilibrium(ns0, nu, theta, pop_id, gamma=None, h=0.5):
     if gamma is not None:
         ss = moments.LinearSystem_1D.steady_state_1D(ns0, gamma=gamma, h=h) * theta
@@ -538,7 +539,7 @@ def moments_fs_root_equilibrium(ns0, nu, theta, pop_id, gamma=None, h=0.5):
         ss = moments.LinearSystem_1D.steady_state_1D(ns0) * theta
     fs = moments.Spectrum(ss, pop_ids=[pop_id])
     if nu != 1.:
-        fs.integrate([nu], 40, theta=theta, rho=rho, gamma=gamma, h=h)
+        fs.integrate([nu], 40, theta=theta, gamma=gamma, h=h)
     return fs
 
 
