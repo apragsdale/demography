@@ -22,7 +22,7 @@ def test_graph():
     G.add_weighted_edges_from([('B','pop1',0.7), ('D','pop1',0.3)])
     return G
 
-class TestMomentsIntegration(unittest.TestCase):
+class TestDadiIntegration(unittest.TestCase):
     """
     Tests parsing the DemoGraph object to pass to moments.LD
     """
@@ -196,7 +196,7 @@ class TestMomentsIntegration(unittest.TestCase):
         fs_moments = dg.SFS(['pop1', 'pop2'], [4,4], engine='moments')
         self.assertTrue(np.allclose(fs_dadi, fs_moments, 0.2))
 
-suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsIntegration)
+suite = unittest.TestLoader().loadTestsFromTestCase(TestDadiIntegration)
 
 if __name__ == '__main__':
     unittest.main()
