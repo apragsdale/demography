@@ -9,6 +9,7 @@ from . import msprime_functions
 from . import util
 import tskit
 
+
 ## check nx version (must be >= 2.1)
 def check_nx_version():
     assert (float(nx.__version__) >= 2.2), "networkx must be version 2.2 or \

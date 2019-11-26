@@ -120,8 +120,8 @@ class TestGraphStructure(unittest.TestCase):
     def test_three_pop_merger(self):
         G = nx.DiGraph()
         G.add_node('root', nu=1, T=0)
-        G.add_node('A', nu=1, T=0.1)
-        G.add_node('B', nu=1, T=0.2)
+        G.add_node('A', nu=1, T=0.2)
+        G.add_node('B', nu=1, T=0.1)
         G.add_node('C', nu=2, T=0.1)
         G.add_node('D', nu=1, T=0.1)
         G.add_node('E', nu=2, T=0.1)
@@ -129,6 +129,16 @@ class TestGraphStructure(unittest.TestCase):
             ('A','E'), ('C','E'), ('D','E') ])
         self.assertRaises(InvalidGraph, demography.DemoGraph, G)
 
+
+    def test_max_two_successors(self):
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=0.2)
+        G.add_node('B', nu=1, T=0.1)
+        G.add_node('C', nu=2, T=0.1)
+        G.add_edges_from([('root','A'),('root','B'),('root','C') ])
+        self.assertRaises(InvalidGraph, demography.DemoGraph, G)
+    
     #def test_samples_only_from_leaves():
     #    pass
 
