@@ -3,11 +3,6 @@ import networkx as nx
 import numpy as np
 import matplotlib.pylab as plt
 
-fig = plt.figure(1, figsize=(10,5))
-fig.clf()
-ax1 = plt.subplot(1,2,1)
-ax2 = plt.subplot(1,2,2)
-
 def example_multiple_mergers():
     G = nx.DiGraph()
     G.add_node('Ancestral', nu=1, T=0)
@@ -24,11 +19,6 @@ def example_multiple_mergers():
     return G
 
 
-
-G = example_multiple_mergers()
-dg = demography.DemoGraph(G)
-
-demography.plotting.plot_graph(dg, leaf_order=['Left', 'Right'], leaf_locs=[.2, .7], ax=ax1, padding=.2, offset=.05)
 
 def complicated_merger_model():
     G = nx.DiGraph()
@@ -58,11 +48,76 @@ def complicated_merger_model():
     G.add_weighted_edges_from([('K','pop4',.5), ('L','pop4',.5)])
     return G
 
-G2 = complicated_merger_model()
-dg2 = demography.DemoGraph(G2)
 
-demography.plotting.plot_graph(dg2, leaf_order=['pop1','pop2','pop3','pop4'], leaf_locs=[.2, .4, .6, .8], ax=ax2, offset=0.02)
+"""
+Out of Africa example
+"""
+
+def ooa(params):
+    """
+    The 13 parameter out of Africa model from Gutenkunst et al. (2009)
+    """
+    (nuA, TA, nuB, TB, nuEu0, nuEuF, nuAs0,
+        nuAsF, TF, mAfB, mAfEu, mAfAs, mEuAs) = params
+    
+    G  = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('A', nu=nuA, T=TA)
+    G.add_node('B', nu=nuB, T=TB, m={'YRI':mAfB})
+    G.add_node('YRI', nu=nuA, T=TB+TF, m={'B':mAfB, 'CEU':mAfEu, 'CHB': mAfAs})
+    G.add_node('CEU', nu0=nuEu0, nuF=nuAsF, T=TF, m={'YRI':mAfEu, 'CHB':mEuAs})
+    G.add_node('CHB', nu0=nuAs0, nuF=nuAsF, T=TF, m={'YRI':mAfAs, 'CEU':mEuAs})
+    
+    G.add_edges_from([('root','A'), ('A','B'), ('A','YRI'), ('B','CEU'),
+                      ('B','CHB')])
+    
+    return G
+
+def kamm_model():
+    G = nx.DiGraph()
 
 
-fig.tight_layout()
-plt.show()
+if __name__ == "__main__":
+    fig = plt.figure(1, figsize=(10,5))
+    fig.clf()
+    
+    ax1 = plt.subplot(1,2,1)
+    ax2 = plt.subplot(1,2,2)
+
+    G = example_multiple_mergers()
+    dg = demography.DemoGraph(G)
+
+    demography.plotting.plot_graph(dg, leaf_order=['Left', 'Right'],
+                                   leaf_locs=[.2, .7], ax=ax1, padding=.2, offset=.05)
+
+    G2 = complicated_merger_model()
+    dg2 = demography.DemoGraph(G2)
+
+    demography.plotting.plot_graph(dg2, leaf_order=['pop1','pop2','pop3','pop4'], 
+                                   leaf_locs=[.2, .4, .6, .8], ax=ax2, offset=0.02)
+
+    fig.tight_layout()
+    #plt.show()
+
+    # gutenkunst out of africa parameters
+    params = [2.11, 0.377, 0.251, 0.111, 0.0904, 5.77, 0.224, 3.02, 0.0711, 
+              3.80, 0.256, 0.125, 1.07]
+    G = ooa(params) 
+    dg = demography.DemoGraph(G, Ne=8880, mutation_rate=1.44e-8)
+    
+    fig2 = plt.figure(2, figsize=(10,5))
+    fig2.clf()
+    
+    ax1 = plt.subplot(1,2,1)
+    ax2 = plt.subplot(1,2,2)
+    
+    demography.plotting.plot_graph(dg, leaf_order=['YRI','CEU','CHB'],
+                                   leaf_locs=[.25,.5,.75], ax=ax1)
+    
+    demography.plotting.plot_demography(dg, leaf_order=['YRI','CEU','CHB'],
+                                        ax=ax2, padding=0.1)
+    
+    fig2.tight_layout()
+    plt.show()
+
+

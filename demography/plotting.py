@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pylab as plt
 import copy
 import networkx as nx
+import operator
 
 # Font styles for plots
 pop_label_style = dict(size=10, color='darkblue')
@@ -206,7 +207,7 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
     If leaf_order is not given, we try to cluster, but this isn't guaranteed
     to give a good result.
     """
-    assert leaf_order is not None
+    assert leaf_order is not None, "specify leaf_order=[...]"
     assert [l in dg.leaves for l in leaf_order], "if leaf_order given, must include all leaves"
     assert not ax == None or show == False, "cannot show plot if passing axis"
     
@@ -236,9 +237,13 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
     # draw the leaves
     if leaf_locs is None:
         leaf_locs = [(i+1.)/(len(leaf_order)+1.) for i in range(len(leaf_order))]
+ 
     for i,l in enumerate(leaf_order):
         x = leaf_locs[i]
-        y = 1 - np.mean(intervals[l])
+        if np.isclose(intervals[l][1], 1.0):
+            y = 1 - np.max([np.mean(intervals[lll]) for lll in leaf_order])
+        else:
+            y = 1 - np.mean(intervals[l])
         draw_node(ax, x, y, l, dg, pops_drawn, pop_locations)
     
     # fill in to root
@@ -262,7 +267,9 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
 
 
 
-def plot_demography():
+def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
+                    show=False, padding=0.1, stacked=None):
+
     """
     The plot_graph function is mostly for viewing overarching topology. We'll
     use a lot of the same functions for this function, which draws shapes to
@@ -270,5 +277,144 @@ def plot_demography():
     and continuous migration events (if option is turned on), with sizes drawn
     on a linear or log scale (sometimes we'll choose log scale if there are
     orders of magnitude differences in population sizes along the demography).
+
+    stacked is a list of pairs of populations that should be stacked. If A->B
+    and A->C, but we want it to look like 
+            |
+            A
+            |\
+            B C
+    we would set stacked=[('A','B')] or stacked=[('B','A')]
     """
-    pass
+    assert leaf_order is not None, "specify leaf_order=[...]"
+    assert [l in dg.leaves for l in leaf_order], "if leaf_order given, must include all leaves"
+    assert not ax == None or show == False, "cannot show plot if passing axis"
+    
+    # We'll draw populations in reverse order of their extinction
+    pops_drawn = {}
+    # pops_locations will store the box corners
+    pop_locations = {} # lower left, lower right, upper left, upper right
+    for node in dg.G.nodes:
+        pops_drawn[node] = False
+
+    intervals = get_relative_intervals(dg)
+
+    if ax == None:
+        fig = plt.figure(fignum)
+        fig.clf()
+        ax = plt.subplot(1,1,1)
+    
+    # reorder the leaves if not given
+    if leaf_order is None:
+        leaf_order = copy.copy(dg.leaves)
+    
+    # order that we draw the population blocks, based on intervals[n][1]
+    sorted_pops = sorted(intervals.items(), key=operator.itemgetter(1))
+    
+    # draw populations starting from the most recent
+    # draw all the leaves first, then go through other nodes
+    # start with left leaf,
+    x0 = 0
+    for node in leaf_order:
+        #draw_pop(ax, node, x0, dg, pop_locations, intervals,
+        #         align_left=x0)
+        x0 += padding
+        pops_drawn[node] = True 
+    
+    # plot the interior nodes
+    # annotate pulse events with solid arrows
+#    for pop in sorted_pops[::-1]:
+#        if pops_drawn[pop] == False:
+#            draw_pop(ax, pop, dg, pop_locations, intervals)
+#            pops_drawn[pop] = True
+    
+    # draw continuous migration rates as dashed arrows
+    
+    
+    #ax.set_xticks([])
+    #ax.set_yticks([])
+    
+    #ax.set_xlim([min_block-padding, max_block+padding])
+    #ax.set_ylim([0, 1.2])
+    
+    if show == False:
+        return ax
+    else:
+        fig.tight_layout()
+        plt.show()
+
+
+""" this whole function needs rethinking """
+#
+#def draw_pop(ax, node, lower_left, dg, pop_locations, intervals, align_left=None, stacked=None):
+#    """
+#    if a split, draw halfway in between
+#    if a merger, draw with at least distance padding between
+#    """
+#    print(dg.G.nodes[node])
+#    if 'nu' in dg.G.nodes[node]:
+#        # constant size
+#        x = dg.G.nodes[node]['nu']
+#        if align_left is not None:
+#            left_edge = lower_left
+#            right_edge = lower_left + x
+#            y = [1-intervals[node][0], 1-intervals[node][1]]
+#            x1 = [left_edge, left_edge]
+#            x2 = [right_edge, right_edge]
+#            print(y,x1,x2)
+#            ax.fill_betweenx(y, x1, x2, lw=2, hatch='/', ec='darkblue')
+#            pop_locations[node] = (lower_left, lower_left+x, intervals[node][1]-intervals[node][0])
+#        else:
+#            # get center of population
+#            if len(dg.successors[node]) == 1:
+#                child = dg.successors[node][0]
+#                center = np.mean(pop_locations[child][:2])
+#            else:
+#                child1 = dg.successors[node][0]
+#                child2 = dg.successors[node][1]
+#                center1 = np.mean(pop_locations[child1][:2])
+#                center2 = np.mean(pop_locations[child2][:2])
+#                if stacked == None and node in [e[1] for e in stacked]:
+#                    for e in stacked:
+#                        if node in e and (child1 in e or child2 in e):
+#                            break
+#                    if e[1] == child1 or e[0] == child1:
+#                        center = center1
+#                    else:
+#                        center = center2
+#                else:
+#                    center = np.mean([center1, center2])
+#
+#            left_edge = center-x/2
+#            right_edge = center+x/2
+#            y = [1-intervals[node][0], 1-intervals[node][1]]
+#            x1 = [left_edge, left_edge]
+#            x2 = [right_edge, right_edge]
+#            print(y,x1,x2)
+#            ax.fill_betweenx(y, x1, x2, lw=2, hatch='/', ec='darkblue')
+#            pop_locations[node] = (lower_left, lower_left+x, intervals[node][1]-intervals[node][0])
+#
+#    elif 'nu0' in dg.G.nodes[node] and 'nuF' in dg.G.nodes[node]:
+#        # exponential - fill between
+#        # need to know if comes from a split, will face exponential in
+#        # juxtaposition, or could have it exponential on both sides and
+#        # centered?
+#        # check if left or right
+#        pass
+#        if len(dg.predecessors) == 2:
+#            # merger, can face right
+#        elif len(dg.predecessors) == 1:
+#            if len(dg.successors[dg.predecessors[0]]) == 2:
+#                # split, get if left or right
+#                sister = set(dg.successors[dg.predecessors[0]])-set(node)[0]
+#                if 
+#            else:
+#                # pass, can face right
+##        if align_left is not None:
+##            y = [1-intervals[node][0], 1-intervals[node][1]]
+##            x1 = [intervals[node][0], intervals[node][1]]
+##            x2 = [intervals[node][0], intervals[node][1]]
+##            ax.fill_betweenx(y, x1, x2, lw=2, hatch='/', ec='darkblue')
+#        pass
+#    
+#        
