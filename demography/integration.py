@@ -866,7 +866,7 @@ def evolve_sfs_dadi(dg, pts, theta=None, pop_ids=None,
                                     present_pops[ii], present_pops[ii+1])
 
     # rearrange so that present_pops[-1] == pop_ids
-    phi = dadi_rearrange_pops(phi, present_pops[-1], pop_ids)
+    phi = dadi_rearrange_pops(phi, pts, present_pops[-1], pop_ids)
     spectrum = sample_dadi(phi, grid, pts, sample_sizes)
     spectrum.pop_ids = pop_ids
 
@@ -950,7 +950,7 @@ def dadi_apply_events(phi, grid, pts, epoch_events, prev_present_pops,
     if len(epoch_events) > 0:
         for e in epoch_events:
             if e[0] == 'pass':
-                phi = dadi_pass(phi, e[1], e[2], prev_present_pops,
+                phi = dadi_pass(phi, pts, e[1], e[2], prev_present_pops,
                                next_present_pops)
             elif e[0] == 'split':
                 phi = dadi_split(phi, grid, pts, e[1], e[2], e[3],
@@ -980,11 +980,11 @@ def dadi_marginalize(phi, grid, pts, pop_to_remove, prev_present_pops,
                for (this_phi, this_grid) in zip(phi, grid)]
     else:
         phi = dadi.PhiManip.remove_pop(phi, grid, index_to_remove+1)
-    phi = dadi_rearrange_pops(phi, new_ids, next_present_pops)
+    phi = dadi_rearrange_pops(phi, pts, new_ids, next_present_pops)
     return phi
 
 
-def dadi_pass(phi, pop_from, pop_to, prev_present_pops, next_present_pops):
+def dadi_pass(phi, pts, pop_from, pop_to, prev_present_pops, next_present_pops):
     # just pass on populations, make sure keeping correct order of pop_ids
     new_ids = []
     for pid in prev_present_pops:
@@ -993,7 +993,7 @@ def dadi_pass(phi, pop_from, pop_to, prev_present_pops, next_present_pops):
         else:
             new_ids.append(pid)
 
-    phi = dadi_rearrange_pops(phi, new_ids, next_present_pops)
+    phi = dadi_rearrange_pops(phi, pts, new_ids, next_present_pops)
     return phi
 
 
@@ -1025,7 +1025,7 @@ def dadi_split(phi, grid, pts, parent, child1, child2, prev_present_pops,
             new_ids = prev_present_pops + [child2]
             new_ids[prev_present_pops.index(parent)] = child1
 
-    phi = dadi_rearrange_pops(phi, new_ids, next_present_pops)
+    phi = dadi_rearrange_pops(phi, pts, new_ids, next_present_pops)
     return phi
 
 
@@ -1080,7 +1080,7 @@ def dadi_merge(phi, grid, pts, pops_to_merge, weights, pop_to,
 
         new_ids[new_ids.index(pop1)] = pop_to        
         # reorder so the new ids are in correct order for next_present_pops
-        phi = dadi_rearrange_pops(phi, new_ids, next_present_pops)
+        phi = dadi_rearrange_pops(phi, pts, new_ids, next_present_pops)
     return phi
 
 
@@ -1193,7 +1193,7 @@ def dadi_pulse(phi, grid, pts, pop_from, pop_to, pulse_weight,
     return phi
 
 
-def dadi_rearrange_pops(phi, curr_order, pop_order):
+def dadi_rearrange_pops(phi, pts, curr_order, pop_order):
     """
     swap axes to get this pop order to match next_pop_order
     """
@@ -1201,7 +1201,10 @@ def dadi_rearrange_pops(phi, curr_order, pop_order):
         if curr_order[i] != pop_order[i]:
             j = curr_order.index(pop_order[i])
             while j > i:
-                phi = np.swapaxes(phi,j-1,j)
+                if hasattr(pts, "__len__"):
+                    phi = [np.swapaxes(this_phi, j-1, j) for this_phi in phi]
+                else:
+                    phi = np.swapaxes(phi, j-1, j)
                 curr_order[j-1], curr_order[j] = curr_order[j], curr_order[j-1]
                 j -= 1
     if list(curr_order) != list(pop_order):
