@@ -2,7 +2,6 @@
 Module to handle plotting demographies. These can be used to visually debug a
 demography object that has been defined, or to create quality visualizations of
 the demography, either as a stand-alone plot or as a subplot axes object. 
-
 Requires matplotlib version >= ??
 """
 
@@ -15,7 +14,7 @@ import operator
 # Font styles for plots
 pop_label_style = dict(size=10, color='darkblue')
 frac_style = dict(size=8, color='black')
-text_style = dict(ha='center', va='center', fontsize=10)
+text_style = dict(ha='center', va='center')
 text_box_style = dict(facecolor='none', edgecolor='darkblue', 
                       boxstyle='round,pad=0.25', linewidth=1)
 
@@ -156,7 +155,7 @@ def draw_edge(ax, edge, dg, pop_locations, offset=0.005, buffer=0.03):
     if annot == True:
         ax.annotate(
             f'{weight}', xy=(np.mean([x_from, x_to]), np.mean([y_from, y_to])), xycoords='data',
-            xytext=(4, 0), textcoords='offset points', fontsize=8)
+            xytext=(4, 0), textcoords='offset points')
 
 
 def draw_pulses(ax, dg, pop_locations, offset):
@@ -181,7 +180,7 @@ def draw_pulses(ax, dg, pop_locations, offset):
                     f'{weight}', xy=(np.mean([x_from, x_to]), 
                                      np.mean([y_from, y_to])),
                     xycoords='data',
-                    xytext=(0, 3), textcoords='offset points', fontsize=8)
+                    xytext=(0, 3), textcoords='offset points')
 
 
 def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
@@ -191,20 +190,16 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
     This function is mostly useful for debugging and visualizing the topology of
     the demography, with all populations labeled. For a nicer visualizing, use
     plot_demography below.
-
     Ignores population sizes and continuous migration rates, just plots the
     relationships between populations in the DemoGraph. Arrows indicate splits,
     mergers, and pulse migration events, with fraction of contributions shown
     if needed.
-
     Time is more-or-less ordered from bottom to top as present to past, but
     because populations can persist for different lengths of time, this plot
     isn't meant to be to scale or necessarily indicate the ordering of pulse
     migration events or splits along different lineages.
-
     If a node has a single parent, it is placed directly above. If a node has
     two children, it is placed directly between.
-
     If leaf_order is not given, we try to cluster, but this isn't guaranteed
     to give a good result.
     
@@ -213,7 +208,7 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
     """
     assert leaf_order is not None, "specify leaf_order=[...]"
     assert [l in dg.leaves for l in leaf_order], "if leaf_order given, must include all leaves"
-    assert not ax == None or show == False, "cannot show plot if passing axis"
+    assert ax == None or show == False, "cannot show plot if passing axis"
     
     pops_drawn = {}
     pop_locations = {}
@@ -286,7 +281,6 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     and continuous migration events (if option is turned on), with sizes drawn
     on a linear or log scale (sometimes we'll choose log scale if there are
     orders of magnitude differences in population sizes along the demography).
-
     stacked is a list of pairs of populations that should be stacked. If A->B
     and A->C, but we want it to look like 
             |
@@ -333,7 +327,7 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     for node in leaf_order:
         draw_pop(ax, node, dg, pop_locations, intervals,
                  align_left=x0, stacked=stacked, flipped=flipped,
-                 c=color, h=hatch)
+                 c=color, h=hatch, padding=padding)
         x0 += (pop_locations[node][1] - pop_locations[node][0])
         x0 += padding
         pops_drawn[node] = True
@@ -342,7 +336,8 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     for node in sorted_pops[::-1]:
         if pops_drawn[node] == False:
             draw_pop(ax, node, dg, pop_locations, intervals,
-                     stacked=stacked, flipped=flipped, c=color, h=hatch)
+                     stacked=stacked, flipped=flipped, c=color, h=hatch,
+                     padding=padding)
             pops_drawn[node] = True
     
     # draw connection edges from bottom centers to top centers
@@ -368,7 +363,7 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     for leaf in leaf_order:
         center = np.mean(pop_locations[leaf][:2])
         bottom = 1-intervals[leaf][1]
-        ax.text(center, bottom-0.025, leaf, ha='center', va='center')
+        ax.text(center, bottom-0.04, leaf, ha='center', va='center')
     
     ax.set_xticks([])
     ax.set_yticks([])
@@ -453,7 +448,7 @@ def draw_pulse_event(ax, pop_from, pulse_event, pop_locations, intervals):
         arrowprops={'arrowstyle': '->'})
     ax.annotate(
         f'{weight}', xy=(np.mean([x_from, x_to]), y), xycoords='data',
-        xytext=(0, 3), textcoords='offset points', fontsize=8, ha='center')
+        xytext=(0, 3), textcoords='offset points', ha='center')
 
 
 
@@ -478,7 +473,7 @@ def draw_boundaries(ax, pop_locations, intervals, dg, color):
             if pop in dg.successors:
                 for succ in dg.successors[pop]:
                     s0, s1 = pop_locations[succ][2:]
-                    for ii,(x0, x1) in enumerate(xs[::-1]):
+                    for ii,(x0, x1) in reversed(list(enumerate(xs))):
                         if s0 >= x1: # to the right
                             continue
                         elif s1 <= x0: # to the left
@@ -560,7 +555,7 @@ def draw_pop_connections(ax, edge, pop_locations, intervals, color):
 
 
 def draw_pop(ax, node, dg, pop_locations, intervals, align_left=None,
-             stacked=None, flipped=[], c='k', h='/'):
+             stacked=None, flipped=[], c='k', h='/', padding=0.5):
     """
     if a split, draw halfway in between
     if a merger, draw with at least distance padding between
@@ -593,7 +588,21 @@ def draw_pop(ax, node, dg, pop_locations, intervals, align_left=None,
                 if len(dg.predecessors[dg.successors[node][0]]) == 2:
                     # merger
                     # if so, place on left or right with padding
-                    print("can't do mergers right now...")
+                    order = get_merger_order(dg.successors[node][0], dg,
+                                             pop_locations)
+                    succ_center = np.mean(pop_locations[dg.successors[node][0]][2:])
+                    if order.index(node) == 0:
+                        # on left
+                        if 'nu' in dg.G.nodes[node]:
+                            bottom_center = succ_center - padding/2 - dg.G.nodes[node]['nu']/2
+                        else:
+                            bottom_center = succ_center - padding/2 - dg.G.nodes[node]['nuF']/2
+                    else:
+                        #on right
+                        if 'nu' in dg.G.nodes[node]:
+                            bottom_center = succ_center + padding/2 + dg.G.nodes[node]['nu']/2
+                        else:
+                            bottom_center = succ_center + padding/2 + dg.G.nodes[node]['nuF']/2
                 else:
                     # if not, place on top
                     bottom_center = np.mean(pop_locations[dg.successors[node][0]][2:])
@@ -655,6 +664,3 @@ def get_xs(node, dg, pop_locations, intervals):
         nuF = dg.G.nodes[node]['nuF']
         x_r = nu0 * np.exp(np.log(nuF/nu0)*(y-y0)/(yF-y0)) + bottom_left
     return y, x_l, x_r
-    
-
-    
