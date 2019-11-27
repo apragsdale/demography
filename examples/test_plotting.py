@@ -190,8 +190,8 @@ def kamm_model():
     return G
 
 if __name__ == "__main__":
-    fig = plt.figure(1, figsize=(10,5))
-    fig.clf()
+    fig0 = plt.figure(10, figsize=(10,5))
+    fig0.clf()
     
     ax1 = plt.subplot(1,2,1)
     ax2 = plt.subplot(1,2,2)
@@ -201,15 +201,28 @@ if __name__ == "__main__":
 
     demography.plotting.plot_graph(dg, leaf_order=['Left', 'Right'],
                                    leaf_locs=[.2, .7], ax=ax1)
+                                   
+    demography.plotting.plot_demography(dg, leaf_order=['Left', 'Right'], 
+                                        ax=ax2)
+    fig0.tight_layout()
+
+
+    fig1 = plt.figure(10, figsize=(10,5))
+    fig1.clf()
+    
+    ax1 = plt.subplot(1,2,1)
+    ax2 = plt.subplot(1,2,2)
+
 
     G2 = complicated_merger_model()
     dg2 = demography.DemoGraph(G2)
 
     demography.plotting.plot_graph(dg2, leaf_order=['pop1','pop2','pop3','pop4'], 
-                                   leaf_locs=[.2, .4, .6, .8], ax=ax2)
+                                   leaf_locs=[.2, .4, .6, .8], ax=ax1)
 
-    fig.tight_layout()
-    #plt.show()
+    demography.plotting.plot_demography(dg2, leaf_order=['pop1','pop2','pop3','pop4'], 
+                                        ax=ax1)
+    fig1.tight_layout()
 
 
 
@@ -236,24 +249,6 @@ if __name__ == "__main__":
 
 
 
-    # to see the difference between stacked and unstacked
-    
-    fig3 = plt.figure(3, figsize=(10,5))
-    fig3.clf()
-
-    ax1 = plt.subplot(1,2,1)
-    ax2 = plt.subplot(1,2,2)
-
-    demography.plotting.plot_demography(dg, leaf_order=['YRI','CEU','CHB'],
-                                        ax=ax1, flipped=['CEU'])
-    
-    demography.plotting.plot_demography(dg, leaf_order=['YRI','CEU','CHB'],
-                                        ax=ax2, flipped=['CEU'],
-                                        stacked=[('A','YRI')])
-    
-    fig3.tight_layout()
-    
-    
     
     # a busy Kamm model
     
@@ -287,5 +282,24 @@ if __name__ == "__main__":
     # a lot happens in the distant past, so we focous more recently
     ax1.set_ylim([0,0.15])
 
+
+    # to see the difference between stacked and unstacked
+    
+    fig5 = plt.figure(5, figsize=(10,5))
+    fig5.clf()
+
+    ax1 = plt.subplot(1,2,1)
+    ax2 = plt.subplot(1,2,2)
+
+    demography.plotting.plot_demography(dg, leaf_order=['YRI','CEU','CHB'],
+                                        ax=ax1, flipped=['CEU'])
+    
+    demography.plotting.plot_demography(dg, leaf_order=['YRI','CEU','CHB'],
+                                        ax=ax2, flipped=['CEU'],
+                                        stacked=[('A','YRI')])
+    
+    fig3.tight_layout()
+    
+    
 
     plt.show()
