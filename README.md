@@ -17,6 +17,17 @@ either `moments` (https://bitbucket.org/simongravel/moments/) or `dadi`
 linkage disequlibrium statistics (LD) using `moments.LD` (which is packaged
 with `moments1).
 
+## A note before you dive in
+
+This is mainly a collection of tools I've built to make life easier when
+testing population genetic inference methods against simulated demographic
+models, and for testing the accuracy of various numerical methods for
+computing summary statistics. There could very easily be some corner cases
+where something breaks, or does something unexpected.
+
+If you find any issues or think something is amiss, don't hesitate to get
+in touch and tell me. The easiest way to do that is open an Issue. :)
+
 ## Getting Started
 
 This will get you up and running, after cloning this repository.
