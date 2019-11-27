@@ -14,7 +14,7 @@ import operator
 # Font styles for plots
 pop_label_style = dict(size=10, color='darkblue')
 frac_style = dict(size=8, color='black')
-text_style = dict(ha='center', va='center', fontsize=10)
+text_style = dict(ha='center', va='center')
 text_box_style = dict(facecolor='none', edgecolor='darkblue', 
                       boxstyle='round,pad=0.25', linewidth=1)
 
@@ -155,7 +155,7 @@ def draw_edge(ax, edge, dg, pop_locations, offset=0.005, buffer=0.03):
     if annot == True:
         ax.annotate(
             f'{weight}', xy=(np.mean([x_from, x_to]), np.mean([y_from, y_to])), xycoords='data',
-            xytext=(4, 0), textcoords='offset points', fontsize=8)
+            xytext=(4, 0), textcoords='offset points')
 
 
 def draw_pulses(ax, dg, pop_locations, offset):
@@ -180,7 +180,7 @@ def draw_pulses(ax, dg, pop_locations, offset):
                     f'{weight}', xy=(np.mean([x_from, x_to]), 
                                      np.mean([y_from, y_to])),
                     xycoords='data',
-                    xytext=(0, 3), textcoords='offset points', fontsize=8)
+                    xytext=(0, 3), textcoords='offset points')
 
 
 def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
@@ -363,7 +363,7 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     for leaf in leaf_order:
         center = np.mean(pop_locations[leaf][:2])
         bottom = 1-intervals[leaf][1]
-        ax.text(center, bottom-0.025, leaf, ha='center', va='center')
+        ax.text(center, bottom-0.04, leaf, ha='center', va='center')
     
     ax.set_xticks([])
     ax.set_yticks([])
@@ -448,7 +448,7 @@ def draw_pulse_event(ax, pop_from, pulse_event, pop_locations, intervals):
         arrowprops={'arrowstyle': '->'})
     ax.annotate(
         f'{weight}', xy=(np.mean([x_from, x_to]), y), xycoords='data',
-        xytext=(0, 3), textcoords='offset points', fontsize=8, ha='center')
+        xytext=(0, 3), textcoords='offset points', ha='center')
 
 
 
