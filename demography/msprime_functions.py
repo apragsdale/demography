@@ -122,7 +122,7 @@ def get_demographic_events(dg, pop_indexes, present_pops, integration_times,
     demo_events = []
     elapsed_time = 0
     for es, it, pops in zip(events[::-1], integration_times[:0:-1],
-                                         presents[-2::-1], nu):
+                            present_pops[-2::-1]):
         # update time for this set of events
         elapsed_time += 2*Ne*it
         # append events
