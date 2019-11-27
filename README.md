@@ -261,4 +261,5 @@ we can flip the direction that growth extends, specified in `flipped`.
 ### Examples
 
 In the examples directory, you can run the `test_plotting.py` script to get a
-feel for how these functions work. There are also some ...... finish this up later..
+feel for how these functions work. Note to self: finish this up after the 
+examples are all written in the example dir...
