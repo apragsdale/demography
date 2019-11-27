@@ -19,8 +19,7 @@ import matplotlib
 #plt.rcParams['pdf.fonttype'] = 42
 #plt.rcParams['font.family'] = 'Calibri'
 
-matplotlib.rc('font',**{'pdf.fonttype':42,
-                        'family':'sans-serif',
+matplotlib.rc('font',**{'family':'sans-serif',
                         'sans-serif':['Calibri'],
                         'style':'normal',
                         'size':8 })
@@ -63,6 +62,10 @@ if __name__ == "__main__":
                         span_normalise=False)
     
     ts_fs = spectrum.Spectrum(ts_fs, pop_ids=pop_ids)
+    
+    ###
+    ### From here on is just plotting stuff. All the simulation happened above.
+    ###
     
     # plot some stuff
     fig = plt.figure(1, figsize = (10,6))

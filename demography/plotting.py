@@ -208,7 +208,7 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
     """
     assert leaf_order is not None, "specify leaf_order=[...]"
     assert [l in dg.leaves for l in leaf_order], "if leaf_order given, must include all leaves"
-    assert not ax == None or show == False, "cannot show plot if passing axis"
+    assert ax == None or show == False, "cannot show plot if passing axis"
     
     pops_drawn = {}
     pop_locations = {}
