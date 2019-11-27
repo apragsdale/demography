@@ -208,5 +208,57 @@ dg.SFS(['pop1','pop2'], [20,20])
 
 #### Out-of-Africa human expansion
 
+The well-known OOA model (Gutenkunst et al, 2009) of continental-scale
+human expansion in Africa and Eurasia.
+
+```
+(nuA, TA, nuB, TB, nuEu0, nuEuF, nuAs0,
+    nuAsF, TF, mAfB, mAfEu, mAfAs, mEuAs) = params
+
+G  = nx.DiGraph()
+G.add_node('root', nu=1, T=0)
+G.add_node('A', nu=nuA, T=TA)
+G.add_node('B', nu=nuB, T=TB, m={'YRI':mAfB})
+G.add_node('YRI', nu=nuA, T=TB+TF, m={'B':mAfB, 'CEU':mAfEu, 'CHB': mAfAs})
+G.add_node('CEU', nu0=nuEu0, nuF=nuEuF, T=TF, m={'YRI':mAfEu, 'CHB':mEuAs})
+G.add_node('CHB', nu0=nuAs0, nuF=nuAsF, T=TF, m={'YRI':mAfAs, 'CEU':mEuAs})
+
+G.add_edges_from([('root','A'), ('A','B'), ('A','YRI'), ('B','CEU'),
+                  ('B','CHB')])
+```
+
 ## Plotting Demography objects
 
+We can also plot demographic models using the `demography.plotting` functinos.
+There are two main plotting features: `plot_graph` and `plot_demography`. The
+first is mainly used to plot the overall topology of the demography, with
+splits, mergers, and pulse migration events, and I mainly use it as a visual
+debugger. The second fully plots size changes and all migration, representing
+population sizes as the size of the block, and drawing continuous migration
+rate with dashed arrows.
+
+These can be called by:
+```
+demography.plotting.plot_graph(dg, leaf_order=leaf_order, leaf_locs=leaf_locs)
+```
+where `leaf_order` tells us the order to draw the leaf populations horizontally,
+and `leaf_locs` tells us the x-coordinates to draw them (so we can control their
+spacing). The values in `leaf_locs` have to be between 0 and 1.
+
+We can either plot within a `matpotlib.axes` object, in which we pass the axes
+to `ax=ax1`, e.g. Or we can plot it as a stand-alone figure, and it takes `fignum`
+as an argument, and will print the plot to screen using `show=True`. `offset`,
+`buffer`, and `padding` control the spacing of arrows and populations in the plot.
+
+> **_NOTE:_**  To do: give list of all inputs and usage
+
+The other plotting option is `plot_demography`, which takes slightly different
+inputs. We pass `leaf_order` and `padding` for the spacing between populations,
+we can pass a list of edges to `stacked` for those that are meant to be
+placed vertically instead of staggered. For exponentially growing populations,
+we can flip the direction that growth extends, specified in `flipped`.
+
+### Examples
+
+In the examples directory, you can run the `test_plotting.py` script to get a
+feel for how these functions work. There are also some ...... finish this up later..
