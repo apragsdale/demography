@@ -15,7 +15,7 @@ models. We can also get the expected site frequency spectrum (SFS) using
 either `moments` (https://bitbucket.org/simongravel/moments/) or `dadi` 
 (https://bitbucket.org/gutenkunstlab/dadi/), and expected multi-population
 linkage disequlibrium statistics (LD) using `moments.LD` (which is packaged
-with `moments1).
+with `moments`).
 
 ## A note before you dive in
 
@@ -103,7 +103,8 @@ and convenient way of specifying DAG demographies.
 Note that time and sizes are population-size scaled, so sizes `nu` are
 given relative to "Ne", and times `T` are given in units of 2Ne generations.
 Migration rates are also population-size scaled, in units of 2 Ne m_{i,j}, 
-where m_{i,j}.
+where m_{i,j} is the per generation probability of a lineage in population
+`j` being a migrant from population `i`.
 
 This is all probably best seen through some example:
 
