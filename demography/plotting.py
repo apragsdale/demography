@@ -333,7 +333,7 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     for node in leaf_order:
         draw_pop(ax, node, dg, pop_locations, intervals,
                  align_left=x0, stacked=stacked, flipped=flipped,
-                 c=color, h=hatch, padding=padding)
+                 c=color, h=hatch)
         x0 += (pop_locations[node][1] - pop_locations[node][0])
         x0 += padding
         pops_drawn[node] = True
@@ -342,8 +342,7 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     for node in sorted_pops[::-1]:
         if pops_drawn[node] == False:
             draw_pop(ax, node, dg, pop_locations, intervals,
-                     stacked=stacked, flipped=flipped, c=color, h=hatch,
-                     padding=padding)
+                     stacked=stacked, flipped=flipped, c=color, h=hatch)
             pops_drawn[node] = True
     
     # draw connection edges from bottom centers to top centers
@@ -479,7 +478,7 @@ def draw_boundaries(ax, pop_locations, intervals, dg, color):
             if pop in dg.successors:
                 for succ in dg.successors[pop]:
                     s0, s1 = pop_locations[succ][2:]
-                    for ii,(x0, x1) in reversed(list(enumerate(xs))):
+                    for ii,(x0, x1) in enumerate(xs[::-1]):
                         if s0 >= x1: # to the right
                             continue
                         elif s1 <= x0: # to the left
@@ -561,7 +560,7 @@ def draw_pop_connections(ax, edge, pop_locations, intervals, color):
 
 
 def draw_pop(ax, node, dg, pop_locations, intervals, align_left=None,
-             stacked=None, flipped=[], c='k', h='/', padding=0.5):
+             stacked=None, flipped=[], c='k', h='/'):
     """
     if a split, draw halfway in between
     if a merger, draw with at least distance padding between
@@ -594,21 +593,7 @@ def draw_pop(ax, node, dg, pop_locations, intervals, align_left=None,
                 if len(dg.predecessors[dg.successors[node][0]]) == 2:
                     # merger
                     # if so, place on left or right with padding
-                    order = get_merger_order(dg.successors[node][0], dg,
-                                             pop_locations)
-                    succ_center = np.mean(pop_locations[dg.successors[node][0]][2:])
-                    if order.index(node) == 0:
-                        # on left
-                        if 'nu' in dg.G.nodes[node]:
-                            bottom_center = succ_center - padding/2 - dg.G.nodes[node]['nu']/2
-                        else:
-                            bottom_center = succ_center - padding/2 - dg.G.nodes[node]['nuF']/2
-                    else:
-                        #on right
-                        if 'nu' in dg.G.nodes[node]:
-                            bottom_center = succ_center + padding/2 + dg.G.nodes[node]['nu']/2
-                        else:
-                            bottom_center = succ_center + padding/2 + dg.G.nodes[node]['nuF']/2
+                    print("can't do mergers right now...")
                 else:
                     # if not, place on top
                     bottom_center = np.mean(pop_locations[dg.successors[node][0]][2:])
