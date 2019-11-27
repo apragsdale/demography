@@ -73,6 +73,11 @@ def ooa(params):
     return G
 
 def kamm_model():
+    """
+    8-11 population model (depending on how you count)
+    There is some confusion (to me) about the LBK/Sard branches.. need to 
+    figure that out.
+    """
     # population sizes
     generation_time = 25
     N_Losch = 1.92e3
@@ -117,6 +122,7 @@ def kamm_model():
 
     Ne = N_Nean_Losch # set ancestral size as reference Ne
 
+    # figure out the timing of the pulses as proportions along the source branches
     frac_nean_pulse = 1-(t_Nean_to_Eur-t_Altai)/(t_Mbu_Losch-t_Altai)
     frac_losch_pulse = 1
     
@@ -187,3 +193,55 @@ def kamm_model():
     G.add_edges_from([('LBK_Sard','LBK'),('LBK_Sard','Sardinian')])
     
     return G
+
+def ragsdale_archaic_admixture():
+    # set params
+    (nuA, TA, nuB, TB, nuEu0, nuEuF, nuAs0, nuAsF, TF,
+        mAfB, mAfEu, mAfAs, mEuAs,
+        TMH, TN, f_mAA_begin, mAA, mNeand, T_arch_end) = (
+        3.78, 1.11, 0.233, 0.100, 0.627, 2.87, 0.176, 16.2, 0.169,
+        3.95, 0, 0.180, 0.859,
+        0.528, 0.364, 0.566, 0.180, 0.112, 0.0967)
+    
+    # Ne = 3700
+    
+    # f_mAA_being tells us the fraction along the AA lineage that migration
+    # with MH, A, and YRI begins
+    
+    Ttot = TF+TB+TA+TMH+TN
+    TNeand = Ttot-T_arch_end
+    TAA = TF+TB+TA+TMH-T_arch_end
+    TAA_nomig = f_mAA_begin*TAA
+    TAA_mig = (1-f_mAA_begin)*TAA
+    
+    G = nx.DiGraph()
+    
+    G.add_node('root', nu=1, T=0)
+    
+    G.add_node('Neand', nu=1, T=TNeand,
+               m={'B':mNeand, 'CEU':mNeand, 'CHB':mNeand})
+    G.add_node('MH_AA', nu=1, T=TN)
+    G.add_node('AA_nomig', nu=1, T=TAA_nomig)
+    G.add_node('AA', nu=1, T=TAA_mig,
+               m={'MH':mAA, 'A':mAA, 'YRI':mAA})
+    
+    G.add_node('MH', nu=1, T=TMH,
+               m={'AA':mAA})
+    G.add_node('A', nu=nuA, T=TA,
+               m={'AA':mAA})
+    G.add_node('B', nu=nuB, T=TB,
+               m={'Neand':mNeand, 'YRI':mAfB})
+    
+    G.add_node('YRI', nu=nuA, T=TB+TF,
+               m={'AA':mAA, 'B':mAfB, 'CEU':mAfEu, 'CHB':mAfAs})
+    G.add_node('CEU', nu0=nuEu0, nuF=nuEuF, T=TF,
+               m={'Neand':mNeand, 'YRI':mAfEu, 'CHB':mEuAs})
+    G.add_node('CHB', nu0=nuAs0, nuF=nuAsF, T=TF,
+               m={'Neand':mNeand, 'YRI':mAfAs, 'CEU':mEuAs})
+    
+    edges = [('root','Neand'), ('root','MH_AA'), ('MH_AA','AA_nomig'),
+             ('MH_AA','MH'), ('AA_nomig','AA'), ('MH','A'), ('A','YRI'), 
+             ('A','B'), ('B','CEU'), ('B','CHB')]
+    G.add_edges_from(edges)
+    return G
+

@@ -5,6 +5,9 @@ import matplotlib.pylab as plt
 from models import example_multiple_mergers, complicated_merger_model, ooa, kamm_model
 
 if __name__ == "__main__":
+    """
+    Multiple merger example
+    """
     fig1 = plt.figure(1, figsize=(10,5))
     fig1.clf()
     
@@ -22,6 +25,9 @@ if __name__ == "__main__":
     fig1.tight_layout()
 
 
+    """
+    Model with many splits and mergers
+    """
     fig2 = plt.figure(2, figsize=(10,5))
     fig2.clf()
     
@@ -41,7 +47,9 @@ if __name__ == "__main__":
 
 
 
-    # gutenkunst out of africa parameters
+    """
+    Gutenkunst out of africa model
+    """
     params = [2.11, 0.377, 0.251, 0.111, 0.224, 3.02, 0.0904, 5.77, 0.0711, 
               3.80, 0.256, 0.125, 1.07]
     G = ooa(params) 
@@ -64,9 +72,9 @@ if __name__ == "__main__":
 
 
 
-    
-    # a busy Kamm model
-    
+    """
+    Kamm et al ancient European model
+    """    
     fig4 = plt.figure(4, figsize=(18,8))
     fig4.clf()
 
@@ -98,8 +106,9 @@ if __name__ == "__main__":
     ax1.set_ylim([0,0.15])
 
 
-    # to see the difference between stacked and unstacked
-    
+    """
+    Just to show the difference between stacking and not stacking populations
+    """
     fig5 = plt.figure(5, figsize=(10,5))
     fig5.clf()
 
@@ -110,10 +119,12 @@ if __name__ == "__main__":
     
     demography.plotting.plot_demography(dg, leaf_order=['YRI','CEU','CHB'],
                                         ax=ax1, flipped=['CEU'])
+    ax1.set_title('Not stacked')
     
     demography.plotting.plot_demography(dg, leaf_order=['YRI','CEU','CHB'],
                                         ax=ax2, flipped=['CEU'],
                                         stacked=[('A','YRI')])
+    ax2.set_title('Stacked')
     
     fig5.tight_layout()
     
