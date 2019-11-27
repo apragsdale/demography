@@ -122,7 +122,7 @@ def get_demographic_events(dg, pop_indexes, present_pops, integration_times,
     demo_events = []
     elapsed_time = 0
     for es, it, pops in zip(events[::-1], integration_times[:0:-1],
-                            present_pops[-2::-1]):
+                                         presents[-2::-1], nu):
         # update time for this set of events
         elapsed_time += 2*Ne*it
         # append events
@@ -136,7 +136,7 @@ def get_demographic_events(dg, pop_indexes, present_pops, integration_times,
                                               pop_indexes, demo_events)
         # set migration rates for present pops
         demo_events = update_migration_rates(dg, elapsed_time, pops,
-                                             pop_indexes, demo_events)
+                                             pop_indexes, demo_events, Ne)
     return demo_events
 
 
@@ -169,16 +169,19 @@ def demo_event_at(t, e, pop_indexes, demo_events):
     return demo_events
 
 
-def update_migration_rates(dg, t, current_pops, pop_indexes, demo_events):
+def update_migration_rates(dg, t, current_pops, pop_indexes, demo_events, Ne):
     # turns off all migration, and then adds rates only between populations
     # listed in current_pops
     demo_events.append(msprime.MigrationRateChange(time=t, rate=0))
     for pop in current_pops:
         if 'm' in dg.G.nodes[pop]:
             for pop_to in dg.G.nodes[pop]['m']:
+                # if pop_to is present
+                if pop_to not in current_pops:
+                    continue
                 rate = dg.G.nodes[pop]['m'][pop_to]
                 demo_events.append(msprime.MigrationRateChange(time=t, 
-                    rate=rate,
+                    rate=rate / 2 / Ne,
                     matrix_index=(pop_indexes[pop], pop_indexes[pop_to])))
     return demo_events
 

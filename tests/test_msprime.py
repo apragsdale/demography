@@ -22,6 +22,30 @@ def test_graph():
     G.add_weighted_edges_from([('B','pop1',0.7), ('D','pop1',0.3)])
     return G
 
+def ooa():
+    """
+    The 13 parameter out of Africa model from Gutenkunst et al. (2009)
+    """
+    params = [2.11, 0.377, 0.251, 0.111, 0.224, 3.02, 0.0904, 5.77, 0.0711, 
+              3.80, 0.256, 0.125, 1.07]
+    
+    (nuA, TA, nuB, TB, nuEu0, nuEuF, nuAs0,
+        nuAsF, TF, mAfB, mAfEu, mAfAs, mEuAs) = params
+    
+    G  = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('A', nu=nuA, T=TA)
+    G.add_node('B', nu=nuB, T=TB, m={'YRI':mAfB})
+    G.add_node('YRI', nu=nuA, T=TB+TF, m={'B':mAfB, 'CEU':mAfEu, 'CHB': mAfAs})
+    G.add_node('CEU', nu0=nuEu0, nuF=nuEuF, T=TF, m={'YRI':mAfEu, 'CHB':mEuAs})
+    G.add_node('CHB', nu0=nuAs0, nuF=nuAsF, T=TF, m={'YRI':mAfAs, 'CEU':mEuAs})
+    
+    G.add_edges_from([('root','A'), ('A','B'), ('A','YRI'), ('B','CEU'),
+                      ('B','CHB')])
+    
+    return G
+    
+
 class TestMsprimeFunctions(unittest.TestCase):
     """
     Tests parsing the DemoGraph object to pass to moments.LD
@@ -83,6 +107,12 @@ class TestMsprimeFunctions(unittest.TestCase):
         samples = dg.msprime_samples(pop_ids, ns)
         self.assertTrue(len(samples) == np.sum(ns))
 
+    def test_ooa_migration(self):
+        G = ooa()
+        dg = demography.DemoGraph(G)
+        pop_configs, mig_mat, demo_events = dg.msprime_inputs(Ne = 7300)
+        # how can I test this...
+        
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMsprimeFunctions)
 
 if __name__ == '__main__':
