@@ -7,9 +7,11 @@ Requires matplotlib version >= ??
 
 import numpy as np
 import matplotlib.pylab as plt
+import matplotlib.ticker as ticker
 import copy
 import networkx as nx
 import operator
+from . import util
 
 # Font styles for plots
 pop_label_style = dict(size=10, color='darkblue')
@@ -209,6 +211,11 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
     assert leaf_order is not None, "specify leaf_order=[...]"
     assert [l in dg.leaves for l in leaf_order], "if leaf_order given, must include all leaves"
     assert ax == None or show == False, "cannot show plot if passing axis"
+
+    if ax is None:
+        return_fig = True
+    else:
+        return_fig = False
     
     pops_drawn = {}
     pop_locations = {}
@@ -259,7 +266,10 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
     ax.set_yticks([])
     
     if show == False:
-        return ax
+        if return_fig:
+            return fig
+        else:
+            return ax
     else:
         fig.tight_layout()
         plt.show()
@@ -272,7 +282,7 @@ Functions to plot a visualization with sizes, migration events, and admixtures.
 def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
                     show=False, padding=0.5, stacked=None, flipped=[],
                     root_length=0.2, color='darkblue', hatch=None,
-                    boundaries=True, migrations=True):
+                    boundaries=True, migrations=True, scale=True):
 
     """
     The plot_graph function is mostly for viewing overarching topology. We'll
@@ -290,11 +300,39 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     we would set stacked=[('A','B')]. Note that ('A','B') would work, but
     ('B','A') would not, since the entries need to match the directed edge in
     the DemoGraph object.
+
+    fignum : assigns a figure number to the plot (only if ax is not passed)
+    leaf_order : (required) the order the place the leaf populations from left
+        to right
+    ax : if plotting as a subplot, can pass the matplotlib axes object (cannot
+        be used with show)
+    show : if show is True, calls plt.show() (cannot be used with ax)
+    padding : specify the spacing between populations (used to adjust if 
+        populations are overlapping)
+    stacked : a list of edges that should align on top of each other instead
+        of offset. If it's a population that has only one child, and is not
+        involved in a merger, stacking happens automatically.
+    flipped : if a population grows or decays exponentially, the curve faces
+        right. We can flip the direction by specifying a list of populations
+        that should be flipped.
+    root_length : how far into the past the root population extends (a value of
+        1.0 would mean it takes up half the plot. Defaults to 0.2)
+    color : default set to dark blue, can be whatever color you want
+    hatch : if set, shades populations with a hatch pattern
+    boundaries : if True, plots a darker line around all populations
+    migration : if True, plots continuous migrations as dashed arrows
+    scale : if True, shows a scale bar for generations in units of 2Ne into
+        past
     """
     assert leaf_order is not None, "specify leaf_order=[...]"
     assert [l in dg.leaves for l in leaf_order], "if leaf_order given, must include all leaves"
     assert not ax == None or show == False, "cannot show plot if passing axis"
     
+    if ax is None:
+        return_fig = True
+    else:
+        return_fig = False
+
     # We'll draw populations in reverse order of their extinction
     pops_drawn = {}
     # pops_locations will store the box corners
@@ -365,14 +403,32 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
         bottom = 1-intervals[leaf][1]
         ax.text(center, bottom-0.04, leaf, ha='center', va='center')
     
-    ax.set_xticks([])
-    ax.set_yticks([])
+    if scale == True:
+        ax.set_xticks([])
+        # draw a scale bar on the left hand side
+        # hide the bottom, top, and right spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_position(('outward', 10))
+        ax.set_ylim(bottom=0)
+        y_ticks = ax.get_yticks()
+        leaf_times = util.get_accumulated_times(dg)
+        rescaling = max(leaf_times.values())
+        y_ticklabels = y_ticks * rescaling
+        y_ticklabels = ["{:.2f}".format(y) for y in y_ticklabels]
+        ax.set_yticklabels(y_ticklabels)
+        ax.set_ylabel(r'$2N_e$ generations in past')
+    else:
+        ax.set_xticks([])
+        ax.set_yticks([])
     
-    #ax.set_xlim([min_block-padding, max_block+padding])
-    #ax.set_ylim([0, 1.2])
     
     if show == False:
-        return ax
+        if return_fig:
+            return fig
+        else:
+            return ax
     else:
         fig.tight_layout()
         plt.show()
