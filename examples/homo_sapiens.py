@@ -64,8 +64,7 @@ def ooa_gutenkunst(params=None, Ne=7300):
     edges = [('root', 'A'), ('A', 'B'), ('A', 'YRI'), ('B', 'CEU'),
              ('B', 'CHB')]
     G.add_edges_from(edges)
-    dg =  demography.DemoGraph(G)
-    dg.Ne = Ne
+    dg = demography.DemoGraph(G, Ne=Ne)
     return dg
 
 
@@ -111,24 +110,51 @@ def ooa_tennessen(params=None, Ne=7310):
     edges = [('root', 'Af0'), ('Af0', 'B'), ('Af0', 'Af1'), ('Af1', 'YRI'),
              ('B', 'Eu1'), ('Eu1', 'CEU')]
     G.add_edges_from(edges)
-    dg =  demography.DemoGraph(G)
-    dg.Ne = Ne
+    dg = demography.DemoGraph(G, Ne=Ne)
     return dg
 
 
 """
 Browning American model.
+Admixed population has 1/6 from AFR, 1/3 from EUR, and 1/2 from ASIA.
 """
 
 
-def browning_america(params=None, Ne=):
+def browning_america(params=None, Ne=7310):
     if params is None:
-        () = ()
+        (nuAf, TAf, nuB, TB, nuEu0, nuEuF, nuAs0, nuAsF, nuAdm0, nuAdmF, TEuAs,
+            TAdm, mAfB, mAfEu, mAfAs, mEuAs) = (1.98, 0.265, 0.255, 0.0766,
+                                                0.141, 4.66, 0.0758, 6.27,
+                                                4.10, 7.48, 0.0621, 0.0008,
+                                                2.19, 0.366, 0.114, 0.455)
     else:
-        () = params
+        (nuAf, TAf, nuB, TB, nuEu0, nuEuF, nuAs0, nuAsF, nuAdm0, nuAdmF, TEuAs,
+            TAdm, mAfB, mAfEu, mAfAs, mEuAs) = params
+
+    tol = 1e-10  # offset admixture pulses so they occur in the correct order
+    frac_Eu_pulse = (TEuAs+tol)/(TEuAs+TAdm)
+    frac_As_pulse = (TEuAs+2*tol)/(TEuAs+TAdm)
 
     G = initialize_graph()
-
+    G.add_node('A', nu=nuAf, T=TAf)
+    G.add_node('Af0', nu=nuAf, T=TB+TEuAs,
+               m={'B': mAfB, 'EUR': mAfEu, 'ASIA': mAfAs})
+    G.add_node('B', nu=nuB, T=TB,
+               m={'Af0': mAfB})
+    G.add_node('AFR', nu=nuAf, T=TAdm,
+               m={'EUR': mAfEu, 'ASIA': mAfAs})
+    G.add_node('EUR', nu0=nuEu0, nuF=nuEuF, T=TEuAs+TAdm,
+               m={'Af0': mAfEu, 'AFR': mAfEu, 'ASIA': mEuAs},
+               pulse={('ADMIX', frac_Eu_pulse, 2./3)})
+    G.add_node('ASIA', nu0=nuAs0, nuF=nuAsF, T=TEuAs+TAdm,
+               m={'Af0': mAfAs, 'AFR': mAfAs, 'EUR': mEuAs},
+               pulse={('ADMIX', frac_As_pulse, 1./2)})
+    G.add_node('ADMIX', nu0=nuAdm0, nuF=nuAdmF, T=TAdm)
+    edges = [('root', 'A'), ('A', 'Af0'), ('A', 'B'), ('B', 'EUR'),
+             ('B', 'ASIA'), ('Af0', 'ADMIX'), ('Af0', 'AFR')]
+    G.add_edges_from(edges)
+    dg = demography.DemoGraph(G, Ne=Ne)
+    return dg
 
 
 """
@@ -136,6 +162,171 @@ Ragsdale Archaic admixture model.
 """
 
 
+def ragsdale_archaic(Ne=3600):
+    (nuA, TA, nuB, TB, nuEu0, nuEuF, nuAs0, nuAsF, TF,
+        mAfB, mAfEu, mAfAs, mEuAs,
+        TMH, TN, f_mAA_begin, mAA, mNeand, T_arch_end) = (
+        3.86, 1.146, 0.244, 0.118, 0.639, 3.01, 0.181, 18.3, 0.172,
+        3.76, 0, 0.179, 0.814,
+        0.953, 0.287, 0.566, 0.143, 0.0594, 0.0896)
+
+    Ttot = TF+TB+TA+TMH+TN
+    TNeand = Ttot-T_arch_end
+    TAA = TF+TB+TA+TMH-T_arch_end
+    TAA_nomig = f_mAA_begin*TAA
+    TAA_mig = (1-f_mAA_begin)*TAA
+
+    G = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('Neand', nu=1, T=TNeand,
+               m={'B': mNeand, 'CEU': mNeand, 'CHB': mNeand})
+    G.add_node('MH_AA', nu=1, T=TN)
+    G.add_node('AA_nomig', nu=1, T=TAA_nomig)
+    G.add_node('AA', nu=1, T=TAA_mig,
+               m={'MH': mAA, 'A': mAA, 'YRI': mAA})
+    G.add_node('MH', nu=1, T=TMH,
+               m={'AA': mAA})
+    G.add_node('A', nu=nuA, T=TA,
+               m={'AA': mAA})
+    G.add_node('B', nu=nuB, T=TB,
+               m={'Neand': mNeand, 'YRI': mAfB})
+    G.add_node('YRI', nu=nuA, T=TB+TF,
+               m={'AA': mAA, 'B': mAfB, 'CEU': mAfEu, 'CHB': mAfAs})
+    G.add_node('CEU', nu0=nuEu0, nuF=nuEuF, T=TF,
+               m={'Neand': mNeand, 'YRI': mAfEu, 'CHB': mEuAs})
+    G.add_node('CHB', nu0=nuAs0, nuF=nuAsF, T=TF,
+               m={'Neand': mNeand, 'YRI': mAfAs, 'CEU': mEuAs})
+    edges = [('root', 'Neand'), ('root', 'MH_AA'), ('MH_AA', 'AA_nomig'),
+             ('MH_AA', 'MH'), ('AA_nomig', 'AA'), ('MH', 'A'), ('A', 'YRI'),
+             ('A', 'B'), ('B', 'CEU'), ('B', 'CHB')]
+    G.add_edges_from(edges)
+    dg = demography.DemoGraph(G, Ne=Ne)
+    return dg
+
+
 """
 Kamm Basal European model.
 """
+
+
+def kamm_model(Ne=18200):
+    """
+    8-11 population model (depending on how you count)
+    There is some confusion (to me) about the LBK/Sard branches.. need to
+    figure that out.
+    """
+    # population sizes
+    generation_time = 25
+    N_Losch = 1.92e3
+    N_Mbu = 1.73e4
+    N_Mbu_Losch = 2.91e4
+    N_Han = 6.3e3
+    N_Han_Losch = 2.34e3
+    N_Nean_Losch = 1.82e4
+    N_Nean = 86.9
+    N_LBK = 75.7
+    N_Sard = 1.5e4
+    N_Sard_LBK = 1.2e4
+    N_Basal = N_Losch
+    N_Ust = N_Basal
+    N_MA1 = N_Basal
+    # population merge times in years, divided by generation time
+    t_Mbu_Losch = 9.58e4 / generation_time
+    t_Han_Losch = 5.04e4 / generation_time
+    t_Ust_Losch = 5.15e4 / generation_time
+    t_Nean_Losch = 6.96e5 / generation_time
+    t_MA1_Losch = 4.49e4 / generation_time
+    t_LBK_Losch = 3.77e4 / generation_time
+    t_Basal_Losch = 7.98e4 / generation_time
+    t_Sard_LBK = 7.68e3 / generation_time
+    t_GhostWHG_Losch = 1.56e3 / generation_time
+    # pulse admixture times and fractions
+    p_Nean_to_Eur = 0.0296
+    t_Nean_to_Eur = 5.68e4 / generation_time
+    p_Basal_to_EEF = 0.0936
+    t_Basal_to_EEF = 3.37e4 / generation_time
+    p_GhostWHG_to_Sard = 0.0317
+    t_GhostWHG_to_Sard = 1.23e3 / generation_time
+    # sample_times (in years), divided by estimated generation time
+    t_Mbuti = 0
+    t_Han = 0
+    t_Sardinian = 0
+    t_Loschbour = 7.5e3 / generation_time
+    t_LBK = 8e3 / generation_time
+    t_MA1 = 24e3 / generation_time
+    t_UstIshim = 45e3 / generation_time
+    t_Altai = 50e3 / generation_time
+
+    # figure out timing of the pulses as proportions along the source branches
+    frac_nean_pulse = 1-(t_Nean_to_Eur-t_Altai)/(t_Mbu_Losch-t_Altai)
+    frac_losch_pulse = 1
+
+    G = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    # neanderthals
+    G.add_node('Neand_const', nu=N_Nean_Losch/Ne,
+               T=(t_Nean_Losch-t_Mbu_Losch)/2/Ne)
+    G.add_edge('root', 'Neand_const')
+    G.add_node('Neanderthal', nu0=N_Nean_Losch/Ne, nuF=N_Nean/Ne,
+               T=(t_Mbu_Losch-t_Altai)/2/Ne,
+               pulse={('Ust_Losch', frac_nean_pulse, p_Nean_to_Eur)})
+    G.add_edge('Neand_const', 'Neanderthal')
+
+    G.add_node('Mbu_Losch', nu=N_Mbu_Losch/Ne,
+               T=(t_Nean_Losch-t_Mbu_Losch)/2/Ne)
+    G.add_edge('root', 'Mbu_Losch')
+
+    # mbuti split
+    G.add_node('Mbuti', nu=N_Mbu/Ne,
+               T=t_Mbu_Losch/2/Ne)
+    G.add_node('Basal_Losch', nu=N_Han_Losch/Ne,
+               T=(t_Mbu_Losch-t_Basal_Losch)/2/Ne)
+    G.add_edges_from([('Mbu_Losch', 'Mbuti'), ('Mbu_Losch', 'Basal_Losch')])
+
+    # basal european split
+    G.add_node('Basal Eur', nu=N_Basal/Ne,
+               T=(t_Basal_Losch-t_Basal_to_EEF)/2/Ne,
+               pulse={('LBK_Sard', 1, p_Basal_to_EEF)})
+    G.add_node('Ust_Losch', nu=N_Han_Losch/Ne,
+               T=(t_Basal_Losch-t_Ust_Losch)/2/Ne)
+    G.add_edges_from([('Basal_Losch', 'Basal Eur'),
+                      ('Basal_Losch', 'Ust_Losch')])
+
+    # UstIshim split
+    G.add_node('UstIshim', nu=N_Ust/Ne,
+               T=(t_Ust_Losch-t_UstIshim)/2/Ne)
+    G.add_node('Han_Losch', nu=N_Han_Losch/Ne,
+               T=(t_Ust_Losch-t_Han_Losch)/2/Ne)
+    G.add_edges_from([('Ust_Losch', 'UstIshim'), ('Ust_Losch', 'Han_Losch')])
+
+    # han split
+    G.add_node('Han', nu=N_Han/Ne,
+               T=(t_Han_Losch)/2/Ne)
+    G.add_node('MA1_Losch', nu=N_Losch/Ne,
+               T=(t_Han_Losch-t_MA1_Losch)/2/Ne)
+    G.add_edges_from([('Han_Losch', 'Han'), ('Han_Losch', 'MA1_Losch')])
+
+    # MA1 split
+    G.add_node('MA1', nu=N_MA1/Ne,
+               T=(t_MA1_Losch-t_MA1)/2/Ne)
+    G.add_node('LBK_Losch', nu=N_Losch/Ne,
+               T=(t_MA1_Losch-t_LBK_Losch)/2/Ne)
+    G.add_edges_from([('MA1_Losch', 'MA1'), ('MA1_Losch', 'LBK_Losch')])
+
+    # LBK split
+    G.add_node('LBK_Sard', nu=N_Sard_LBK/Ne,
+               T=(t_LBK_Losch-t_Sard_LBK)/2/Ne)
+    G.add_node('Loschbour', nu=N_Losch/Ne,
+               T=(t_LBK_Losch-t_GhostWHG_to_Sard)/2/Ne,
+               pulse={('Sardinian', 1, p_GhostWHG_to_Sard)})
+    G.add_edges_from([('LBK_Losch', 'LBK_Sard'), ('LBK_Losch', 'Loschbour')])
+
+    # Sardinian-LBK split
+    G.add_node('LBK', nu=N_LBK/Ne,
+               T=t_Sard_LBK/2/Ne)
+    G.add_node('Sardinian', nu=N_Sard/Ne,
+               T=t_Sard_LBK/2/Ne)
+    G.add_edges_from([('LBK_Sard', 'LBK'), ('LBK_Sard', 'Sardinian')])
+
+    dg = demography.DemoGraph(G, Ne=Ne)
+    return dg
