@@ -537,7 +537,7 @@ def draw_pulse_event(ax, pop_from, pulse_event, pop_locations, intervals):
         xytext=(x_from, y), textcoords='data',
         arrowprops={'arrowstyle': '->'})
     ax.annotate(
-        f'{weight}', xy=(np.mean([x_from, x_to]), y), xycoords='data',
+        f'{weight:.2f}', xy=(np.mean([x_from, x_to]), y), xycoords='data',
         xytext=(0, 3), textcoords='offset points', ha='center')
 
 
