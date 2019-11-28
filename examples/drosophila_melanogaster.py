@@ -1,5 +1,5 @@
 """
-
+Drosophila melanogaster models.
 """
 
 import networkx as nx
