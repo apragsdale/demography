@@ -98,12 +98,12 @@ def ooa_tennessen(params=None, Ne=7310):
 
     G = initialize_graph()
     G.add_node('Af0', nu=nuAf0, T=TAf)
-    G.add_node('B', nu=nuB, T=TOOA,
-               m={'Af1': mAfB})
     G.add_node('Af1', nu=nuAf0, T=TOOA+TEu1,
                m={'B': mAfB, 'Eu1': mAfB})
+    G.add_node('B', nu=nuB, T=TOOA,
+               m={'Af1': mAfB})
     G.add_node('Eu1', nu0=nuEu0, nuF=nuEu1, T=TEu1,
-               m={'YRI': mAfB})
+               m={'Af1': mAfB})
     G.add_node('YRI', nu0=nuAf0, nuF=nuAfF, T=TEu2,
                m={'CEU': mAfB})
     G.add_node('CEU', nu0=nuEu1, nuF=nuEu2, T=TEu2,
@@ -119,6 +119,16 @@ def ooa_tennessen(params=None, Ne=7310):
 """
 Browning American model.
 """
+
+
+def browning_america(params=None, Ne=):
+    if params is None:
+        () = ()
+    else:
+        () = params
+
+    G = initialize_graph()
+
 
 
 """

@@ -264,6 +264,10 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
     
     ax.set_xticks([])
     ax.set_yticks([])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
     
     if show == False:
         if return_fig:
@@ -594,7 +598,7 @@ def draw_boundaries(ax, pop_locations, intervals, dg, color):
             # draw tops, minus overlap with bottoms of children
             xs = [(x0, x1)]
             for pred in dg.predecessors[pop]:
-                s0, s1 = pop_locations[pred][2:]
+                s0, s1 = pop_locations[pred][:2]
                 for ii,(x0, x1) in enumerate(xs[::-1]):
                     if s0 >= x1: # to the right
                         continue
