@@ -8,7 +8,8 @@ Note that all sizes are given relative to the ancestral or reference size, so
 nu=0.5 would mean that the population is 1/2 the size of the ancestral
 population. Time is given in units of 2N_ref generations.
 
-Each function returns a DemoGraph object.
+Each function returns a DemoGraph object. Ne is set to the effective population
+size inferred or assumed in the original model.
 """
 
 import networkx as nx
@@ -41,7 +42,7 @@ Default parameters (with Ne=7300):
 """
 
 
-def ooa_gutenkunst(params=None):
+def ooa_gutenkunst(params=None, Ne=7300):
     if params is None:
         (nuA, TA, nuB, TB, nuEu0, nuEuF, nuAs0, nuAsF, TF, mAfB, mAfEu, mAfAs,
             mEuAs) = (1.685, 0.219, 0.288, 0.325, 0.137, 4.07, 0.0699, 7.41,
@@ -63,7 +64,9 @@ def ooa_gutenkunst(params=None):
     edges = [('root', 'A'), ('A', 'B'), ('A', 'YRI'), ('B', 'CEU'),
              ('B', 'CHB')]
     G.add_edges_from(edges)
-    return demography.DemoGraph(G)
+    dg =  demography.DemoGraph(G)
+    dg.Ne = Ne
+    return dg
 
 
 """
@@ -84,7 +87,7 @@ Default parameters (with Ne=7310):
 """
 
 
-def ooa_tennessen(params=None):
+def ooa_tennessen(params=None, Ne=7310):
     if params is None:
         (nuAf0, nuAfF, nuB, nuEu0, nuEu1, nuEu2, mAfB, mAfEu, TAf, TOOA, TEu1,
             TEu2) = (1.98, 59.1, 0.255, 0.141, 0.678, 36.7, 2.19, 0.366, 0.265,
@@ -108,7 +111,9 @@ def ooa_tennessen(params=None):
     edges = [('root', 'Af0'), ('Af0', 'B'), ('Af0', 'Af1'), ('Af1', 'YRI'),
              ('B', 'Eu1'), ('Eu1', 'CEU')]
     G.add_edges_from(edges)
-    return demography.DemoGraph(G)
+    dg =  demography.DemoGraph(G)
+    dg.Ne = Ne
+    return dg
 
 
 """

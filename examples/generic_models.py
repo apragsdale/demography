@@ -7,7 +7,7 @@ Note that all sizes are given relative to the ancestral or reference size, so
 nu=0.5 would mean that the population is 1/2 the size of the ancestral
 population. Time is given in units of 2N_ref generations.
 
-Each function returns a DemoGraph object.
+Each function returns a DemoGraph object. Ne is is not set.
 """
 
 import networkx as nx
