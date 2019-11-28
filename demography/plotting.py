@@ -264,6 +264,10 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
     
     ax.set_xticks([])
     ax.set_yticks([])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
     
     if show == False:
         if return_fig:
@@ -282,7 +286,8 @@ Functions to plot a visualization with sizes, migration events, and admixtures.
 def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
                     show=False, padding=0.5, stacked=None, flipped=[],
                     root_length=0.2, color='darkblue', hatch=None,
-                    boundaries=True, migrations=True, scale=True):
+                    boundaries=True, migrations=True, scale=True,
+                    Ne=None, gen=None):
 
     """
     The plot_graph function is mostly for viewing overarching topology. We'll
@@ -404,21 +409,7 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
         ax.text(center, bottom-0.04, leaf, ha='center', va='center')
     
     if scale == True:
-        ax.set_xticks([])
-        # draw a scale bar on the left hand side
-        # hide the bottom, top, and right spines
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.spines['left'].set_position(('outward', 10))
-        ax.set_ylim(bottom=0)
-        y_ticks = ax.get_yticks()
-        leaf_times = util.get_accumulated_times(dg)
-        rescaling = max(leaf_times.values())
-        y_ticklabels = y_ticks * rescaling
-        y_ticklabels = ["{:.2f}".format(y) for y in y_ticklabels]
-        ax.set_yticklabels(y_ticklabels)
-        ax.set_ylabel(r'$2N_e$ generations in past')
+        draw_scale(dg, ax, Ne, gen)
     else:
         ax.set_xticks([])
         ax.set_yticks([])
@@ -432,6 +423,49 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     else:
         fig.tight_layout()
         plt.show()
+
+
+def draw_scale(dg, ax, Ne, gen):
+    """
+    If Ne is set, we rescale time by Ne, and if gen is also set, we rescale
+    into years.
+    Otherwise we draw the scale in units of 2Ne generations
+    """
+    # xticks off
+    ax.set_xticks([])
+    # draw a scale bar on the left hand side
+    # hide the bottom, top, and right spines
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    
+    ax.spines['left'].set_position(('outward', 10))
+    ax.set_ylim(bottom=0)
+    y_ticks = ax.get_yticks()
+    leaf_times = util.get_accumulated_times(dg)
+    rescaling = max(leaf_times.values())
+    # if Ne and gen are given, we rescale the time
+    if Ne is None and dg.Ne is not None:
+        Ne = dg.Ne
+    
+    if Ne is not None:
+        if gen is not None:
+            rescaling *= (2*Ne * gen / 1e3)
+            y_ticklabels = y_ticks * rescaling
+            y_ticklabels = ["{:.0f}".format(y) for y in y_ticklabels]
+            ylabel = r'Time in past (ky)'
+        else:
+            rescaling *= 2*Ne
+            y_ticklabels = y_ticks * rescaling
+            y_ticklabels = ["{:.0f}".format(y) for y in y_ticklabels]
+            ylabel = r'Generations in past'
+    else:
+        y_ticklabels = y_ticks * rescaling
+        y_ticklabels = ["{:.2f}".format(y) for y in y_ticklabels]
+        ylabel = r'$2N_e$ generations in past'
+    
+    ax.set_ylabel(ylabel)
+    ax.set_yticklabels(y_ticklabels)
 
 
 def draw_migrations(ax, dg, pop_locations, intervals):
@@ -564,7 +598,7 @@ def draw_boundaries(ax, pop_locations, intervals, dg, color):
             # draw tops, minus overlap with bottoms of children
             xs = [(x0, x1)]
             for pred in dg.predecessors[pop]:
-                s0, s1 = pop_locations[pred][2:]
+                s0, s1 = pop_locations[pred][:2]
                 for ii,(x0, x1) in enumerate(xs[::-1]):
                     if s0 >= x1: # to the right
                         continue
