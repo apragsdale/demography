@@ -214,7 +214,8 @@ class DemoGraph():
                          recombination_map=None, mutation_rate=None,
                          replicates=None):
         """
-        Qs: how to handle recombination map (msprime format vs hapmap, both?)
+        recombination map: pass file path+name, msprime will parse and set the 
+            length
             
         """
         # check if recombination rate or genetic map is passed
@@ -223,15 +224,12 @@ class DemoGraph():
         if recombination_map is not None and recombination_rate is not None:
             print("recombination rate given, but using given map")
             recombination_rate = None
-        if sequence_length is None:
-            print("no sequence length set, using genetic map if given")
-            if recombination_map is not None:
-                print("one is given - but need to fix this")
-                # get end of recombination map
-                sequence_length = 1.
-            else:
-                print("setting sequence length to 1")
-                sequence_length = 1.
+        
+        if recombination_map is not None:
+            recombination_map = msprime.RecombinationMap.read_hapmap(recombination_map)
+            if sequence_length is not None:
+                print("recombination map given, sequence length is map length")
+            sequence_length = None
         
         pop_config, mig_mat, demo_events = self.msprime_inputs(Ne=Ne)
         samples = self.msprime_samples(pop_ids=pop_ids,
