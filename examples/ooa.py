@@ -46,7 +46,7 @@ if __name__ == "__main__":
     fs *= L*reps
     
     rhos = np.linspace(0,10,21)
-    ld = dg.LD(pop_ids=pop_ids, rho=rhos, theta=4*Ne*u)
+    ld = dg.LD(pop_ids, rho=rhos, theta=4*Ne*u)
     
     # simulate using msprime
     ts = dg.simulate_msprime(Ne=Ne, pop_ids=pop_ids, sample_sizes=[30,30,30],

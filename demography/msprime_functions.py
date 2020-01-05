@@ -111,9 +111,10 @@ def get_migration_matrix(dg, contemporary_pops, pop_indexes, Ne):
         if 'm' in dg.G.nodes[pop]:
             ind_from = pop_indexes[pop]
             for pop_to in dg.G.nodes[pop]['m']:
-                ind_to = pop_indexes[pop_to]
-                scaled_rate = dg.G.nodes[pop]['m'][pop_to] / 2 / Ne
-                M[ind_from][ind_to] = scaled_rate
+                if pop_to in contemporary_pops:
+                    ind_to = pop_indexes[pop_to]
+                    scaled_rate = dg.G.nodes[pop]['m'][pop_to] / 2 / Ne
+                    M[ind_from][ind_to] = scaled_rate
     return M
 
 

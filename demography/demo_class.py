@@ -7,6 +7,7 @@ import numpy as np
 from . import integration
 from . import msprime_functions
 from . import util
+from . import coalescence_rates
 import tskit
 
 
@@ -118,7 +119,7 @@ class DemoGraph():
             theta = 1.0
         return theta
 
-    def LD(self, rho=None, theta=None, pop_ids=None):
+    def LD(self, pop_ids, rho=None, theta=None):
         """
         
         """
@@ -248,3 +249,30 @@ class DemoGraph():
 
         return ts
 
+    """
+    Compute coalescence rates for specified populations. Uses msprime
+    demographic events, migration matrix, and population configs to get
+    coalescent rates between pairs of lineages within and between set of
+    populations.
+    """
+    
+    def coal_rates(self, pop_ids=None, Ne=None, gens=None):
+        """
+        gens defaults to 2*N
+        """
+        if Ne is None:
+            if self.Ne is not None:
+                Ne = self.Ne
+            else:
+                raise InputError("Please pass Ne")
+        (pop_config, mig_mat, demo_events) = self.msprime_inputs(Ne=Ne)
+        
+        pop_indexes = {}
+        for ii,pop in enumerate(self.G.nodes):
+            pop_indexes[pop] = ii
+
+        if gens is None:
+            gens = 2*Ne
+        rates = coalescence_rates.all_rates(pop_ids, pop_indexes, pop_config,
+                                            mig_mat, demo_events, gens)
+        return rates

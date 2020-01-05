@@ -112,6 +112,13 @@ class TestMsprimeFunctions(unittest.TestCase):
         dg = demography.DemoGraph(G)
         pop_configs, mig_mat, demo_events = dg.msprime_inputs(Ne = 7300)
         # how can I test this...
+    
+    def test_initial_migration_matrix(self):
+        G = ooa()
+        dg = demography.DemoGraph(G, Ne=7310)
+        pop_configs, mig_mat, demo_events = dg.msprime_inputs(Ne = 7300)
+        contemp_pops = [3,4,5]
+        self.assertTrue(np.all([mig_mat[i][j] == 0 for i in range(6) for j in range(6) if (i not in contemp_pops or j not in contemp_pops)]))
         
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMsprimeFunctions)
 
