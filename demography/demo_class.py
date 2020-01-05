@@ -119,7 +119,7 @@ class DemoGraph():
             theta = 1.0
         return theta
 
-    def LD(self, rho=None, theta=None, pop_ids=None):
+    def LD(self, pop_ids, rho=None, theta=None):
         """
         
         """
