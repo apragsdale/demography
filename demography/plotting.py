@@ -331,7 +331,7 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     """
     assert leaf_order is not None, "specify leaf_order=[...]"
     assert [l in dg.leaves for l in leaf_order], "if leaf_order given, must include all leaves"
-    assert not ax == None or show == False, "cannot show plot if passing axis"
+    assert ax == None or show == False, "cannot show plot if passing axis"
     
     if ax is None:
         return_fig = True
