@@ -82,8 +82,67 @@ class TestCoalFunctions(unittest.TestCase):
         ts = np.linspace(0,99,100)
         self.assertTrue(np.allclose(rate, 1./2/10000 * np.exp(0.001*ts)))
     
-    ### to do, 1/2/2020: apply pulse events, set up migration transitions, and test these functions
+    def test_pulse_events(self):
+        pop_config = [msprime.PopulationConfiguration(initial_size=1000),
+                      msprime.PopulationConfiguration(initial_size=1000)]
+        demo_events = [msprime.MassMigration(source=1, dest=0, proportion=1,
+                                             time=100)]
+        pulses = demography.coalescence_rates.pulse_events(pop_config,
+                                                           demo_events)
+        self.assertTrue(len(pulses.keys()) == 1)
+        self.assertTrue(list(pulses.keys())[0] == 100)
+        ys = [np.array([1,0,0]),np.array([0,1,0]),np.array([0,0,1])]
+        for y in ys:
+            self.assertTrue(np.all(pulses[100][0].dot(y) == np.array([1,0,0])))
     
+    def test_all_lineages_moved(self):
+        y = np.ones(21)
+        Ne = 7310
+        dg = demography.DemoGraph(ooa(), Ne=Ne)
+        (pop_config, mig_mat, demo_events) = dg.msprime_inputs()
+        pulses = demography.coalescence_rates.pulse_events(pop_config,
+                                                           demo_events)
+        for gen in sorted(pulses.keys()):
+            for pulse in pulses[gen]:
+                y = pulse.dot(y)
+        self.assertTrue(y[0] == 21)
+        self.assertTrue(np.all(y[1:] == 0))
+    
+    def test_migration_matrix_sum(self):
+        Ne = 7310
+        dg = demography.DemoGraph(ooa(), Ne=Ne)
+        (pop_config, mig_mat, demo_events) = dg.msprime_inputs()
+        M = demography.coalescence_rates.get_mig_transition(mig_mat)
+        self.assertTrue(np.allclose(np.sum(M, axis=0), 1))
+
+    def test_no_coalescence_without_migration(self):
+        pop_config = [msprime.PopulationConfiguration(initial_size=1000),
+                      msprime.PopulationConfiguration(initial_size=1000)]
+        mig_mat = [[0,0],[0,0]]
+        demo_events = [msprime.MassMigration(source=1, dest=0, proportion=1,
+                                             time=100)]
+        pulses = demography.coalescence_rates.pulse_events(pop_config,
+                                                           demo_events)
+        rates = demography.coalescence_rates.get_rates(0, 1, pop_config,
+                    mig_mat, demo_events, 200)
+        self.assertTrue(np.all(rates[:100] == 0))
+        self.assertTrue(np.all(rates[100:] == 0.0005))
+    
+    def test_coalescence_with_migration(self):
+        pop_config = [msprime.PopulationConfiguration(initial_size=1000),
+                      msprime.PopulationConfiguration(initial_size=1000)]
+        mig_mat = [[0,0.001],[0.001,0]]
+        demo_events = [msprime.MassMigration(source=1, dest=0, proportion=1,
+                                             time=100),
+                       msprime.MigrationRateChange(rate=0, time=100)]
+        pulses = demography.coalescence_rates.pulse_events(pop_config,
+                                                           demo_events)
+        rates = demography.coalescence_rates.get_rates(0, 1, pop_config,
+                    mig_mat, demo_events, 200)
+        self.assertTrue(np.all(rates >= 0))
+        self.assertTrue(np.all(rates[:-1]-rates[1:] <= 1e-16))
+        
+        
 suite = unittest.TestLoader().loadTestsFromTestCase(TestCoalFunctions)
 
 if __name__ == '__main__':

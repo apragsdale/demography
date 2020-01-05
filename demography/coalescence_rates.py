@@ -2,19 +2,21 @@ import numpy as np
 import copy
 
 
-def all_rates(pop_ids, pop_config, mig_mat, demo_events, gens):
+def all_rates(pop_ids, pop_indexes, pop_config, mig_mat, demo_events, gens):
     """
     
     """
     rates = {}
     for ii,pop1 in enumerate(pop_ids):
         for pop2 in pop_ids[ii:]:
-            rates[(pop1, pop2)] = get_rates(pop1, pop2, pop_config, mig_mat,
-                                          demo_events, gens)
+            ind1 = pop_indexes[pop1]
+            ind2 = pop_indexes[pop2]
+            rates[(pop1, pop2)] = get_rates(ind1, ind2, pop_config,
+                                            mig_mat, demo_events, gens)
     return rates
 
 
-def get_rates(pop1, pop2, pop_config, mig_mat, demo_events, gens):
+def get_rates(ind1, ind2, pop_config, mig_mat, demo_events, gens):
     """
     
     """
@@ -23,7 +25,7 @@ def get_rates(pop1, pop2, pop_config, mig_mat, demo_events, gens):
     # intitialize states
     y = np.zeros(num_pops*(num_pops+1)//2)
     inds = set_up_inds(num_pops)
-    y[inds[(pop1,pop2)]] = 1
+    y[inds[(ind1,ind2)]] = 1
     
     # initialize vector of rates over number of generations
     rate = np.zeros(gens)
@@ -51,10 +53,12 @@ def get_rates(pop1, pop2, pop_config, mig_mat, demo_events, gens):
             migration_rate = get_mig_transition(m)
         
         # 2. apply pulse events if any occur this generation
-        #if gen in pulses:
+        if gen in pulses:
+            for pulse in pulses[gen]:
+                y = pulse.dot(y)
             
         # 3. apply migration events
-        #y = migration_rate.dot(y)
+        y = migration_rate.dot(y)
         
         # 4. compute coal rate
         # 4a. compute prob of coal in any lineage this generation
@@ -75,6 +79,7 @@ def set_up_inds(num_pops):
     for i in range(num_pops):
         for j in range(i,num_pops):
             inds[(i,j)] = c
+            c += 1
     return inds    
 
 
@@ -140,8 +145,63 @@ def migration_matrices(pop_config, mig_mat, demo_events):
 
 
 def get_mig_transition(m):
-    pass
-
+    num_pops = len(m)
+    inds = set_up_inds(num_pops)
+    M = np.eye(num_pops*(num_pops+1)//2)
+    for ii in range(num_pops):
+        for jj in range(num_pops):
+            if m[ii][jj] != 0: # nonzero rate of lineage from ii to jj
+                for kk in range(num_pops):
+                    pair_from = tuple(sorted([ii,kk]))
+                    if kk == ii:
+                        pair_to_single = tuple(sorted([jj,kk]))
+                        pair_to_double = tuple(sorted([jj,jj]))
+                        M[inds[pair_from], inds[pair_from]] -= 2*m[ii][jj]*(1-m[ii][jj])
+                        M[inds[pair_to_single], inds[pair_from]] += 2*m[ii][jj]*(1-m[ii][jj])
+                        M[inds[pair_from], inds[pair_from]] -= m[ii][jj] ** 2
+                        M[inds[pair_to_double], inds[pair_from]] += m[ii][jj] ** 2
+                    else:
+                        pair_to = tuple(sorted([jj,kk]))
+                        M[inds[pair_from], inds[pair_from]] -= m[ii][jj]
+                        M[inds[pair_to], inds[pair_from]] += m[ii][jj]
+    return M
 
 def pulse_events(pop_config, demo_events):
-    pass
+    num_pops = len(pop_config)
+    inds = set_up_inds(num_pops)
+    pulses = {}
+    for de in demo_events:
+        if de.type == 'mass_migration':
+            P = np.eye(num_pops*(num_pops+1)//2)
+            gen = int(np.ceil(de.time))
+            ind_from = de.source
+            ind_to = de.dest
+            frac = de.proportion
+            for ii in range(num_pops):
+                for jj in range(ii,num_pops):
+                    if ii == jj:
+                        if ii == ind_from:
+                            # prob move both = frac ** 2
+                            P[inds[(ii,jj)],inds[(ii,jj)]] -= frac ** 2
+                            P[inds[(ind_to,ind_to)],inds[(ii,jj)]] += frac ** 2
+                            # prob move one = 2*frac*(1-frac)
+                            P[inds[(ii,jj)],inds[(ii,jj)]] -= 2*frac*(1-frac)
+                            pair_to = tuple(sorted([ii,ind_to]))
+                            P[inds[pair_to],inds[(ii,jj)]] += 2*frac*(1-frac)
+                            # prob move neither = (1-frac) ** 2
+                    else:
+                        if ii == ind_from:
+                            # prob move the lineage = frac
+                            P[inds[(ii,jj)],inds[(ii,jj)]] -= frac
+                            pair_to = tuple(sorted([ind_to,jj]))
+                            P[inds[pair_to],inds[(ii,jj)]] += frac
+                            # prob don't move the lineage = 1-frac
+                        elif jj == ind_from:
+                            # prob move the lineage = frac
+                            P[inds[(ii,jj)],inds[(ii,jj)]] -= frac
+                            pair_to = tuple(sorted([ii,ind_to]))
+                            P[inds[pair_to],inds[(ii,jj)]] += frac
+                            # prob don't move the lineage = 1-frac
+            pulses.setdefault(gen, [])
+            pulses[gen].append(P)
+    return pulses
