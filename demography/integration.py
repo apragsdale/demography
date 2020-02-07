@@ -652,7 +652,7 @@ def evolve_sfs_moments(dg, theta=None, pop_ids=None,
         # integrate this epoch
         fs.integrate(nu_epoch, T, theta=theta, m=mig_mat,
                      frozen=frozen, gamma=[gamma]*len(nu), h=[h]*len(nu))
-
+        
         # apply events
         if ii < len(events):
             fs = moments_apply_events(fs, events[ii], present_pops[ii+1],
@@ -715,29 +715,21 @@ def moments_split(fs, parent, child1, child2, lineages):
                         lineages[child1], lineages[child2])
     elif data.ndim == 3:
         if ids_from[0] == parent:
-            data = np.swapaxes(data, 0, 2)
-            fs_to = moments.Manips.split_3D_to_4D_3(data,
+            fs_to = moments.Manips.split_3D_to_4D_1(data,
                         lineages[child1], lineages[child2])
-            data = np.swapaxes(data, 0, 2)
         elif ids_from[1] == parent:
-            data = np.swapaxes(data, 1, 2)
-            fs_to = moments.Manips.split_3D_to_4D_3(data,
+            fs_to = moments.Manips.split_3D_to_4D_2(data,
                         lineages[child1], lineages[child2])
-            data = np.swapaxes(data, 1, 2)
         elif ids_from[2] == parent:
             fs_to = moments.Manips.split_3D_to_4D_3(data,
                         lineages[child1], lineages[child2])
     elif data.ndim == 4:
         if ids_from[0] == parent:
-            data = np.swapaxes(data, 0, 2)
-            fs_to = moments.Manips.split_4D_to_5D_3(data,
+            fs_to = moments.Manips.split_4D_to_5D_1(data,
                         lineages[child1], lineages[child2])
-            data = np.swapaxes(data, 0, 2)
         elif ids_from[1] == parent:
-            data = np.swapaxes(data, 1, 2)
-            fs_to = moments.Manips.split_4D_to_5D_3(data,
+            fs_to = moments.Manips.split_4D_to_5D_2(data,
                         lineages[child1], lineages[child2])
-            data = np.swapaxes(data, 1, 2)
         elif ids_from[2] == parent:
             fs_to = moments.Manips.split_4D_to_5D_3(data,
                         lineages[child1], lineages[child2])

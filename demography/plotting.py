@@ -406,7 +406,7 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     for leaf in leaf_order:
         center = np.mean(pop_locations[leaf][:2])
         bottom = 1-intervals[leaf][1]
-        ax.text(center, bottom-0.04, leaf, ha='center', va='center')
+        ax.text(center, bottom-0.06, leaf, ha='center', va='center')
     
     if scale == True:
         draw_scale(dg, ax, Ne, gen)
@@ -461,7 +461,7 @@ def draw_scale(dg, ax, Ne, gen):
             ylabel = r'Generations in past'
     else:
         y_ticklabels = y_ticks * rescaling
-        y_ticklabels = ["{:.2f}".format(y) for y in y_ticklabels]
+        y_ticklabels = ["{:.3f}".format(y) for y in y_ticklabels]
         ylabel = r'$2N_e$ generations in past'
     
     ax.set_ylabel(ylabel)
