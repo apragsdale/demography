@@ -145,6 +145,8 @@ class DemoGraph():
             h (dominance coefficient)
             
         """
+        util.max_two_successors(self)
+
         if theta is None and self.Ne is None:
             if Ne is not None and u is not None:
                 theta = 4*Ne*u

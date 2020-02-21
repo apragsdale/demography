@@ -218,9 +218,9 @@ def get_next_events(dg, pulse_migration_events, time_left, present_pops):
                         new_pops += dg.successors[this_pop]
                         new_times += [dg.G.nodes[child]['T'] for child in dg.successors[this_pop]]
                         new_nus += [add_size_to_nus(dg.G, child, dg.G.nodes[child]['T']) for child in dg.successors[this_pop]]
-                if len(dg.successors[this_pop]) == 2:
-                    child1, child2 = dg.successors[this_pop]
-                    new_events.append( ('split', this_pop, child1, child2) )
+                if len(dg.successors[this_pop]) >= 2:
+                    children = dg.successors[this_pop]
+                    new_events.append( tuple(['split', this_pop] + children ) )
                 else:
                     child = dg.successors[this_pop][0]
                     # if the one child is a merger, need to specify,
@@ -441,7 +441,7 @@ def ld_apply_events(Y, epoch_events, next_present_pops):
             if e[0] == 'pass':
                 Y = ld_pass(Y, e[1], e[2])
             elif e[0] == 'split':
-                Y = ld_split(Y, e[1], e[2], e[3])
+                Y = ld_split(Y, e[1], e[2:]) # pass list of children (typically 2, but could be more)
             elif e[0] == 'merger':
                 Y = ld_merge(Y, e[1], e[2], e[3]) # pops_from, weights, pop_to
             elif e[0] == 'pulse':
@@ -465,11 +465,12 @@ def ld_pass(Y, pop_from, pop_to):
     return Y
 
 
-def ld_split(Y, parent, child1, child2):
+def ld_split(Y, parent, children):
     ids_from = Y.pop_ids
-    Y = Y.split(ids_from.index(parent)+1)
-    ids_to = ids_from + [child2]
-    ids_to[ids_from.index(parent)] = child1
+    for ii in range(len(children)-1):
+        Y = Y.split(ids_from.index(parent)+1)
+    ids_to = ids_from + list(children[1:])
+    ids_to[ids_from.index(parent)] = children[0]
     Y.pop_ids = ids_to
     return Y
 

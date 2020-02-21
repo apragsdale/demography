@@ -57,6 +57,15 @@ def example_multiple_mergers_mismatch():
         ('E','G',.5),('D','G',.5)])
     return G
 
+def example_three_split():
+    G = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('pop1', nu=1, T=1)
+    G.add_node('pop2', nu=1, T=1)
+    G.add_node('pop3', nu=1, T=1)
+    G.add_edges_from([('root','pop1'), ('root','pop2'), ('root','pop3')])
+    return demography.DemoGraph(G)
+
 class TestGraphStructure(unittest.TestCase):
     """
     Tests the Demography class functions extract the correct topology and catch errors
@@ -129,20 +138,9 @@ class TestGraphStructure(unittest.TestCase):
             ('A','E'), ('C','E'), ('D','E') ])
         self.assertRaises(InvalidGraph, demography.DemoGraph, G)
 
-
-    def test_max_two_successors(self):
-        G = nx.DiGraph()
-        G.add_node('root', nu=1, T=0)
-        G.add_node('A', nu=1, T=0.2)
-        G.add_node('B', nu=1, T=0.1)
-        G.add_node('C', nu=2, T=0.1)
-        G.add_edges_from([('root','A'),('root','B'),('root','C') ])
-        self.assertRaises(InvalidGraph, demography.DemoGraph, G)
-    
-    #def test_samples_only_from_leaves():
-    #    pass
-
-    #def 
+    def test_three_way_split(self):
+        dg = example_three_split()
+        self.assertTrue(len(dg.successors['root']) == 3)
 
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestGraphStructure)
