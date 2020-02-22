@@ -37,7 +37,10 @@ def check_valid_demography(dg):
     # check that all times align
     if all_merger_times_align(dg) == False:
         raise InvalidGraph('splits/mergers do not align')
+    
+def max_two_successors(dg):
     # check that at most two successors
+    # want to relax this
     for pop in dg.successors:
         if len(dg.successors[pop]) > 2:
             raise InvalidGraph('can only split into maximum two populations')

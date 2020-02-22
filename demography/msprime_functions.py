@@ -150,12 +150,11 @@ def demo_event_at(t, e, pop_indexes, demo_events):
             msprime.MassMigration(time=t, source=pop_indexes[e[2]], 
                     destination=pop_indexes[e[1]], proportion=1.))
     elif e[0] == 'split':
-        demo_events.append(
-            msprime.MassMigration(time=t, source=pop_indexes[e[2]],
-                    destination=pop_indexes[e[1]], proportion=1.))
-        demo_events.append(
-            msprime.MassMigration(time=t, source=pop_indexes[e[3]],
-                    destination=pop_indexes[e[1]], proportion=1.))
+        for source_pop in e[2:]:
+            demo_events.append(msprime.MassMigration(time=t,
+                                       source=pop_indexes[source_pop],
+                                       destination=pop_indexes[e[1]],
+                                       proportion=1.))
     elif e[0] == 'merger':
         demo_events.append(
             msprime.MassMigration(time=t, source=pop_indexes[e[3]],

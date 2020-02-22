@@ -45,6 +45,15 @@ def ooa():
     
     return G
     
+def example_three_split():
+    G = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('pop1', nu=1, T=1)
+    G.add_node('pop2', nu=1, T=1)
+    G.add_node('pop3', nu=1, T=1)
+    G.add_edges_from([('root','pop1'), ('root','pop2'), ('root','pop3')])
+    return demography.DemoGraph(G)
+
 
 class TestMsprimeFunctions(unittest.TestCase):
     """
@@ -119,7 +128,18 @@ class TestMsprimeFunctions(unittest.TestCase):
         pop_configs, mig_mat, demo_events = dg.msprime_inputs(Ne = 7300)
         contemp_pops = [3,4,5]
         self.assertTrue(np.all([mig_mat[i][j] == 0 for i in range(6) for j in range(6) if (i not in contemp_pops or j not in contemp_pops)]))
-        
+    
+    def test_three_way_split(self):
+        dg = example_three_split()
+        Ne = 10000
+        pop_configs, mig_mat, demo_events = dg.msprime_inputs(Ne=Ne)
+        moves = [0,0,0]
+        for de in demo_events:
+            if de.type == 'mass_migration':
+                if de.dest == 0:
+                    moves[de.source-1] = 1
+        self.assertTrue(np.all(moves))
+
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMsprimeFunctions)
 
 if __name__ == '__main__':

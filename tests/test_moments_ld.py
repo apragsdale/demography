@@ -32,6 +32,15 @@ def simple_graph():
     dg = demography.DemoGraph(G)
     return dg
 
+def example_three_split():
+    G = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('pop1', nu=1, T=1)
+    G.add_node('pop2', nu=1, T=1)
+    G.add_node('pop3', nu=1, T=1)
+    G.add_edges_from([('root','pop1'), ('root','pop2'), ('root','pop3')])
+    return demography.DemoGraph(G)
+
 class TestMomentsLD(unittest.TestCase):
     """
     Tests parsing the DemoGraph object to pass to moments.LD
@@ -52,7 +61,18 @@ class TestMomentsLD(unittest.TestCase):
         y2.integrate([1,1], 0.2, rho=1., theta=0.001, frozen=[False, True])
         self.assertTrue(np.allclose(y[0], y2[0]))
         self.assertTrue(np.allclose(y[1], y2[1]))
-    
+
+    def test_split_of_three(self):
+        dg = example_three_split()
+        Y = dg.LD(pop_ids=['pop1','pop2','pop3'], theta=0.001)
+        self.assertTrue(Y.pop_ids == ['pop1','pop2','pop3'])
+        y = mold.Demographics1D.snm()
+        y = y.split(1)
+        y = y.split(1)
+        y.integrate([1,1,1], 1)
+        self.assertTrue(np.allclose(y[0], Y[0]))
+        
+
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsLD)
 
 if __name__ == '__main__':

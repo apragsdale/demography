@@ -22,6 +22,15 @@ def test_graph():
     G.add_weighted_edges_from([('B','pop1',0.7), ('D','pop1',0.3)])
     return G
 
+def example_three_split():
+    G = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('pop1', nu=1, T=1)
+    G.add_node('pop2', nu=1, T=1)
+    G.add_node('pop3', nu=1, T=1)
+    G.add_edges_from([('root','pop1'), ('root','pop2'), ('root','pop3')])
+    return demography.DemoGraph(G)
+
 class TestMomentsIntegration(unittest.TestCase):
     """
     Tests parsing the DemoGraph object to pass to moments.LD
@@ -189,6 +198,11 @@ class TestMomentsIntegration(unittest.TestCase):
         fs2.integrate([1,1], .3)
         fs2.integrate([1,1], .2, frozen=[False,True])
         self.assertTrue(np.allclose(fs.data, fs2.data))
+
+    def test_split_of_three_raise(self):
+        dg = example_three_split()
+        self.assertRaises(InvalidGraph, dg.SFS, pop_ids=['pop1','pop2','pop3'],
+                                                sample_sizes=[10,10,10])
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsIntegration)
 
