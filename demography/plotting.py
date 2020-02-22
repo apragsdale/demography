@@ -452,12 +452,12 @@ def draw_scale(dg, ax, Ne, gen):
         if gen is not None:
             rescaling *= (2*Ne * gen / 1e3)
             y_ticklabels = y_ticks * rescaling
-            y_ticklabels = ["{:.0f}".format(y) for y in y_ticklabels]
+            y_ticklabels = ["{:.1f}".format(y) for y in y_ticklabels]
             ylabel = r'Time in past (ky)'
         else:
             rescaling *= 2*Ne
             y_ticklabels = y_ticks * rescaling
-            y_ticklabels = ["{:.0f}".format(y) for y in y_ticklabels]
+            y_ticklabels = ["{:.1f}".format(y) for y in y_ticklabels]
             ylabel = r'Generations in past'
     else:
         y_ticklabels = y_ticks * rescaling
