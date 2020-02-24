@@ -71,7 +71,12 @@ class TestMomentsLD(unittest.TestCase):
         y = y.split(1)
         y.integrate([1,1,1], 1)
         self.assertTrue(np.allclose(y[0], Y[0]))
-        
+
+    def test_marginalize_unsampled(self):
+        dg = example_three_split()
+        Y = dg.LD(pop_ids=['pop1','pop2'], theta=0.001)
+        self.assertTrue('pop1' in Y.pop_ids and 'pop2' in Y.pop_ids)
+        self.assertTrue(len(Y.pop_ids) == 2)
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsLD)
 
