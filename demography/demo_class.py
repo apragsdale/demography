@@ -215,7 +215,7 @@ class DemoGraph():
                          pop_ids=None, sample_sizes=None,
                          sequence_length=None, recombination_rate=None,
                          recombination_map=None, mutation_rate=None,
-                         replicates=None):
+                         replicates=None, seed=None):
         """
         recombination map: pass file path+name, msprime will parse and set the 
             length
@@ -247,7 +247,8 @@ class DemoGraph():
                               recombination_rate=recombination_rate,
                               mutation_rate=mutation_rate,
                               recombination_map=recombination_map,
-                              num_replicates=replicates)
+                              num_replicates=replicates,
+                              random_seed=seed)
 
         return ts
 
