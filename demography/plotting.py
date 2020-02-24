@@ -647,7 +647,8 @@ def draw_pop_connections(ax, edge, pop_locations, intervals, color):
 def draw_pop(ax, node, dg, pop_locations, intervals, align_left=None,
              stacked=None, flipped=[], c='k', h='/', padding=0.5):
     """
-    if a split, draw halfway in between
+    if a split, draw halfway in between left- and right- most children
+    unless stacked, draw on top of stacked child pop
     if a merger, draw with at least distance padding between
     """
     # if the population is stacked, we align the center of its bottom with the
@@ -666,12 +667,13 @@ def draw_pop(ax, node, dg, pop_locations, intervals, align_left=None,
             bottom_center = np.mean(pop_locations[pop_below][2:])
         else:
             # is not stacked
-            # if it has two descendents, place it between them
-            if len(dg.successors[node]) == 2:
-                child1, child2 = dg.successors[node]
+            # if it has at least two descendents, place it between them
+            if len(dg.successors[node]) >= 2:
+                children = dg.successors[node]
+                top_centers = sorted([np.mean(pop_locations[child][2:]) for child in children])
                 # get top centers of left and right children
-                top_center1 = np.mean(pop_locations[child1][2:])
-                top_center2 = np.mean(pop_locations[child2][2:])
+                top_center1 = top_centers[0]
+                top_center2 = top_centers[-1]
                 bottom_center = np.mean([top_center1, top_center2])
             # if only one descendent, check if it is involved in a merger
             else:

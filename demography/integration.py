@@ -391,7 +391,8 @@ def evolve_ld(dg, rho=None, theta=None, pop_ids=None):
     integrates moments.LD along the demography, which returns an LDStats
     object, for the given rhos, where rho=4*Ne*r.
     Note that theta in this model is 4*Ne*u, and not scaled by L, so it would
-    be on the order of 0.001 instead of 1 (for example.
+    be on the order of 0.001 instead of 1.
+    pop_ids specifies the leaf populations we want to predict data for.
     """
     assert momentsLD_installed, "moments.LD is not installed"
 
@@ -425,9 +426,22 @@ def evolve_ld(dg, rho=None, theta=None, pop_ids=None):
             Y = ld_apply_events(Y, events[ii], present_pops[ii+1])
 
     # at the end, make sure the populations are in the right order
+    Y = ld_marginalize_nonpresent(Y, pop_ids)
+
     if pop_ids is not None:
         Y = ld_rearrange_pops(Y, pop_ids)
 
+    return Y
+
+
+def ld_marginalize_nonpresent(Y, pop_ids):
+    pops_to_marginalize = []
+    for pop in Y.pop_ids:
+        if pop not in pop_ids:
+            pops_to_marginalize.append(pop)
+    
+    marge_indexes = [Y.pop_ids.index(pop)+1 for pop in pops_to_marginalize]
+    Y = Y.marginalize(marge_indexes)
     return Y
 
 
