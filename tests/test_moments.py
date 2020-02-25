@@ -198,12 +198,6 @@ class TestMomentsIntegration(unittest.TestCase):
         fs2.integrate([1,1], .2, frozen=[False,True])
         self.assertTrue(np.allclose(fs.data, fs2.data))
 
-    def test_split_of_three_raise(self):
-        dg = example_three_split()
-        self.assertRaises(InvalidGraph, dg.SFS, pop_ids=['pop1','pop2','pop3'],
-                                                sample_sizes=[10,10,10])
-
-
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsIntegration)
 
 if __name__ == '__main__':
