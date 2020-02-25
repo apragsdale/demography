@@ -113,7 +113,7 @@ def get_migration_matrix(G, new_pops):
                     continue
                 else:
                     if pop_to in G.nodes[pop_from]['m']:
-                        M[ii][jj] = G.nodes[pop_from]['m'][pop_to]
+                        M[jj][ii] = G.nodes[pop_from]['m'][pop_to]
     return M
 
 

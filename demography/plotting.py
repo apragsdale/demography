@@ -283,7 +283,7 @@ def plot_graph(dg, fignum=1, leaf_order=None, leaf_locs=None, ax=None,
 Functions to plot a visualization with sizes, migration events, and admixtures.
 """
 
-def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
+def plot_demography(dg, fignum=1, leaf_order=None, labels=None, ax=None,
                     show=False, padding=0.5, stacked=None, flipped=[],
                     root_length=0.2, color='darkblue', hatch=None,
                     boundaries=True, migrations=True, scale=True,
@@ -332,6 +332,9 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
     assert leaf_order is not None, "specify leaf_order=[...]"
     assert [l in dg.leaves for l in leaf_order], "if leaf_order given, must include all leaves"
     assert ax == None or show == False, "cannot show plot if passing axis"
+    
+    if labels is None:
+        labels = leaf_order
     
     if ax is None:
         return_fig = True
@@ -403,10 +406,10 @@ def plot_demography(dg, fignum=1, leaf_order=None, ax=None,
         draw_boundaries(ax, pop_locations, intervals, dg, color)
     
     # label leaf populations
-    for leaf in leaf_order:
+    for leaf,label in zip(leaf_order,labels):
         center = np.mean(pop_locations[leaf][:2])
         bottom = 1-intervals[leaf][1]
-        ax.text(center, bottom-0.06, leaf, ha='center', va='center')
+        ax.text(center, bottom-0.06, label, ha='center', va='center')
     
     if scale == True:
         draw_scale(dg, ax, Ne, gen)
@@ -545,16 +548,20 @@ def draw_pulse_event(ax, pop_from, pulse_event, pop_locations, intervals):
 def draw_boundaries(ax, pop_locations, intervals, dg, color):
     # draw edges around populations, except where two touch on top/bottom
     for pop in dg.G.nodes:
+        if 'frozen' in dg.G.nodes[pop] and dg.G.nodes[pop]['frozen'] is True:
+            linestyle = ':'
+        else:
+            linestyle = '-'
         # draw left and right edges
         y, x_l, x_r = get_xs(pop, dg, pop_locations, intervals)
-        ax.plot(x_l, 1-y, color=color, lw=1)
-        ax.plot(x_r, 1-y, color=color, lw=1)
+        ax.plot(x_l, 1-y, color=color, lw=1, linestyle=linestyle)
+        ax.plot(x_r, 1-y, color=color, lw=1, linestyle=linestyle)
         
         # draw bottoms
         x0, x1 = pop_locations[pop][:2]
         y = 1-intervals[pop][1]
         if pop in dg.leaves:
-            ax.plot((x0, x1), (y, y), color=color, lw=1)
+            ax.plot((x0, x1), (y, y), color=color, lw=1, linestyle=linestyle)
         else:
             # draw bottom, minus overlap with tops of children
             x0, x1 = pop_locations[pop][:2]
@@ -587,13 +594,13 @@ def draw_boundaries(ax, pop_locations, intervals, dg, color):
                                     xs[ii] = (x0, s0)
                                     xs.append((s1, x1))
             for (x0, x1) in xs:
-                ax.plot((x0, x1), (y, y), color=color, lw=1)
+                ax.plot((x0, x1), (y, y), color=color, lw=1, linestyle=linestyle)
                         
         # draw tops
         x0, x1 = pop_locations[pop][2:]
         y = 1-intervals[pop][0]
         if pop == dg.root:
-            ax.plot((x0, x1), (y, y), color=color, lw=1)
+            ax.plot((x0, x1), (y, y), color=color, lw=1, linestyle=linestyle)
         else:
             # draw tops, minus overlap with bottoms of children
             xs = [(x0, x1)]
@@ -623,7 +630,7 @@ def draw_boundaries(ax, pop_locations, intervals, dg, color):
                                 xs[ii] = (x0, s0)
                                 xs.append((s1, x1))
             for (x0, x1) in xs:
-                ax.plot((x0, x1), (y, y), color=color, lw=1)
+                ax.plot((x0, x1), (y, y), color=color, lw=1, linestyle=linestyle)
 
 def draw_pop_connections(ax, edge, pop_locations, intervals, color):
     pop_from, pop_to = edge
@@ -714,8 +721,12 @@ def draw_pop(ax, node, dg, pop_locations, intervals, align_left=None,
     # get the limits of the pop
     y, x_l, x_r = get_xs(node, dg, pop_locations, intervals)
 
-    ax.fill_betweenx(1-y, x_l, x_r, 
-                     facecolor=c, hatch=h, alpha=0.5)
+    if 'frozen' in dg.G.nodes[node] and dg.G.nodes[node]['frozen'] is True:
+        ax.fill_betweenx(1-y, x_l, x_r, 
+                         facecolor=c, hatch=h, alpha=0.1, linewidth=0.0)
+    else:
+        ax.fill_betweenx(1-y, x_l, x_r, 
+                         facecolor=c, hatch=h, alpha=0.5)
 
 def get_pop_corners(node, bottom_center, dg, pop_locations, intervals, flipped):
     # if the population has exponential change, it faces right, unless we have
