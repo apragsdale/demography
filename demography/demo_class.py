@@ -161,8 +161,6 @@ class DemoGraph():
             h (dominance coefficient)
             
         """
-        util.max_two_successors(self)
-
         if theta is None and self.Ne is None:
             if Ne is not None and u is not None:
                 theta = 4*Ne*u
@@ -182,6 +180,7 @@ class DemoGraph():
                                                 sample_sizes=sample_sizes,
                                                 gamma=gamma, h=h)
         elif engine == 'dadi':
+            util.max_two_successors(self)
             assert pts is not None, "pts must be given to integrate with dadi"
             fs = integration.evolve_sfs_dadi(self, pts, theta=theta, 
                                              pop_ids=pop_ids,

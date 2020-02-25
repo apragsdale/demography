@@ -441,7 +441,8 @@ def ld_marginalize_nonpresent(Y, pop_ids):
             pops_to_marginalize.append(pop)
     
     marge_indexes = [Y.pop_ids.index(pop)+1 for pop in pops_to_marginalize]
-    Y = Y.marginalize(marge_indexes)
+    if len(marge_indexes) > 0:
+        Y = Y.marginalize(marge_indexes)
     return Y
 
 
@@ -605,9 +606,8 @@ def get_number_needed_lineages(dg, pop_ids, sample_sizes, events):
         for e in epoch_events[::-1]:
             if e[0] == 'split':
                 parent = e[1]
-                child1 = e[2]
-                child2 = e[3]
-                lineages[parent] += lineages[child1] + lineages[child2]
+                children = e[2:]
+                lineages[parent] += sum([lineages[child] for child in children])
             elif e[0] == 'merger':
                 parent1 = e[1][0]
                 parent2 = e[1][1]
@@ -690,7 +690,7 @@ def moments_apply_events(fs, epoch_events, next_present_pops, lineages):
             if e[0] == 'pass':
                 fs = moments_pass(fs, e[1], e[2])
             elif e[0] == 'split':
-                fs = moments_split(fs, e[1], e[2], e[3], lineages)
+                fs = moments_split(fs, e[1], e[2:], lineages)
             elif e[0] == 'merger':
                 fs = moments_merge(fs, e[1], e[2], e[3], lineages) # pops_from, weights, pop_to
             elif e[0] == 'pulse':
@@ -713,8 +713,17 @@ def moments_pass(fs, pop_from, pop_to):
     fs.pop_ids = new_ids
     return fs
 
+def moments_split(fs, parent, children, lineages):
+    fs.pop_ids[fs.pop_ids.index(parent)] = children[0]
+    for jj,child2 in enumerate(children[1:]):
+        temp_lineages = {child2: lineages[child2]}
+        temp_lineages[children[0]] = lineages[children[0]]
+        if jj+2 < len(children):
+            temp_lineages[children[0]] += sum([lineages[c] for c in children[jj+2:]])
+        fs = moments_split_2_way(fs, children[0], children[0], child2, temp_lineages)
+    return fs
 
-def moments_split(fs, parent, child1, child2, lineages):
+def moments_split_2_way(fs, parent, child1, child2, lineages):
     ids_from = fs.pop_ids
     data = copy.copy(fs)
     data.pop_ids = None

@@ -6,7 +6,7 @@ import numpy as np
 import networkx as nx
 import demography
 from demography.util import InvalidGraph
-
+import copy
 import moments
 
 def test_graph():
@@ -92,29 +92,28 @@ class TestMomentsIntegration(unittest.TestCase):
         fs2 = moments.Manips.split_1D_to_2D(fs, 20, 20)
         pops_to = ['pop1','pop2']
         fs2.pop_ids = pops_to
-        fs2_dg = demography.integration.moments_split(fs, 'pop0', 'pop1', 'pop2',
+        fs2_dg = demography.integration.moments_split(fs, 'pop0', ['pop1', 'pop2'],
                                                       lineages)
         self.assertTrue(fs2.pop_ids == fs2_dg.pop_ids)
-        fs2.pop_ids = None # this is due to bug in moments
         fs3_1 = moments.Manips.split_2D_to_3D_1(fs2, 15, 5)
         fs3_1.pop_ids = ['child1','pop2','child2']
         fs3_2 = moments.Manips.split_2D_to_3D_2(fs2, 15, 5)
         fs3_2.pop_ids = ['pop1','child1','child2']
-        fs3_1_dg = demography.integration.moments_split(fs2_dg, 'pop1', 'child1', 'child2',
+        fs3_1_dg = demography.integration.moments_split(copy.deepcopy(fs2_dg), 'pop1', ['child1', 'child2'],
                                                       lineages)
-        fs3_2_dg = demography.integration.moments_split(fs2_dg, 'pop2', 'child1', 'child2',
+        fs3_2_dg = demography.integration.moments_split(copy.deepcopy(fs2_dg), 'pop2', ['child1', 'child2'],
                                                       lineages)
         self.assertTrue(fs3_1.pop_ids == fs3_1_dg.pop_ids)
         self.assertTrue(fs3_2.pop_ids == fs3_2_dg.pop_ids)
         fs3 = moments.Manips.split_2D_to_3D_2(fs2, 10, 10)
         fs3.pop_ids = ['pop1','child1','child2']
-        fs4 = demography.integration.moments_split(fs3_2_dg, 'pop1', 'child3', 'child4',
+        fs4 = demography.integration.moments_split(copy.deepcopy(fs3_2_dg), 'pop1', ['child3', 'child4'],
                                                       lineages)
         self.assertTrue(fs4.pop_ids == ['child3','child1','child2','child4'])
-        fs4 = demography.integration.moments_split(fs3_2_dg, 'child1', 'child3', 'child4',
+        fs4 = demography.integration.moments_split(copy.deepcopy(fs3_2_dg), 'child1', ['child3', 'child4'],
                                                       lineages)
         self.assertTrue(fs4.pop_ids == ['pop1','child3','child2','child4'])
-        fs4 = demography.integration.moments_split(fs3_2_dg, 'child2', 'child3', 'child4',
+        fs4 = demography.integration.moments_split(copy.deepcopy(fs3_2_dg), 'child2', ['child3', 'child4'],
                                                       lineages)
         self.assertTrue(fs4.pop_ids == ['pop1','child1','child3','child4'])
 
@@ -203,6 +202,7 @@ class TestMomentsIntegration(unittest.TestCase):
         dg = example_three_split()
         self.assertRaises(InvalidGraph, dg.SFS, pop_ids=['pop1','pop2','pop3'],
                                                 sample_sizes=[10,10,10])
+
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsIntegration)
 
