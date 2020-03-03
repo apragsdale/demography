@@ -341,6 +341,27 @@ def plot_demography(dg, fignum=1, leaf_order=None, labels=None, ax=None,
     else:
         return_fig = False
 
+    if Ne is None and dg.Ne is not None:
+        Ne = dg.Ne
+
+    # plot so that zero is at the bottom, time increase backward in time
+    leaf_times = util.get_accumulated_times(dg)
+    
+    # all y values get linearly rescaled by rescaling
+    if Ne is not None:
+        if gen is not None:
+            # scaling in thousands of years
+            rescaling = (2*Ne * gen / 1e3)
+            ylabel = r'Time in past (ky)'
+        else:
+            rescaling = 2*Ne
+            ylabel = r'Generations in past'
+    else:
+        ylabel = r'$2N_e$ generations in past'
+    
+    rescaling *= max(leaf_times.values())
+
+    
     # We'll draw populations in reverse order of their extinction
     pops_drawn = {}
     # pops_locations will store the box corners
@@ -371,7 +392,7 @@ def plot_demography(dg, fignum=1, leaf_order=None, labels=None, ax=None,
     # start with left leaf,
     x0 = 0
     for node in leaf_order:
-        draw_pop(ax, node, dg, pop_locations, intervals,
+        draw_pop(ax, node, dg, pop_locations, intervals, rescaling,
                  align_left=x0, stacked=stacked, flipped=flipped,
                  c=color, h=hatch, padding=padding)
         x0 += (pop_locations[node][1] - pop_locations[node][0])
@@ -381,38 +402,38 @@ def plot_demography(dg, fignum=1, leaf_order=None, labels=None, ax=None,
     # plot the interior nodes
     for node in sorted_pops[::-1]:
         if pops_drawn[node] == False:
-            draw_pop(ax, node, dg, pop_locations, intervals,
+            draw_pop(ax, node, dg, pop_locations, intervals, rescaling,
                      stacked=stacked, flipped=flipped, c=color, h=hatch,
                      padding=padding)
             pops_drawn[node] = True
     
     # draw connection edges from bottom centers to top centers
     for edge in dg.G.edges():
-        draw_pop_connections(ax, edge, pop_locations, intervals, color)
+        draw_pop_connections(ax, edge, pop_locations, intervals, color, rescaling)
         
 
     # annotate pulse events with solid arrows
     for pop in dg.G.nodes:
         if 'pulse' in dg.G.nodes[pop]:
             for pulse_event in dg.G.nodes[pop]['pulse']:
-                draw_pulse_event(ax, pop, pulse_event, pop_locations, intervals)
+                draw_pulse_event(ax, pop, pulse_event, pop_locations, intervals, rescaling)
     
     # draw continuous migration rates as dashed arrows
     if migrations == True:
-        draw_migrations(ax, dg, pop_locations, intervals)
+        draw_migrations(ax, dg, pop_locations, intervals, rescaling)
     
     # draw edges around all populations
     if boundaries == True:
-        draw_boundaries(ax, pop_locations, intervals, dg, color)
+        draw_boundaries(ax, pop_locations, intervals, dg, color, rescaling)
     
     # label leaf populations
     for leaf,label in zip(leaf_order,labels):
         center = np.mean(pop_locations[leaf][:2])
         bottom = 1-intervals[leaf][1]
-        ax.text(center, bottom-0.06, label, ha='center', va='center')
+        ax.text(center, (bottom-0.1)*rescaling, label, ha='center', va='center')
     
     if scale == True:
-        draw_scale(dg, ax, Ne, gen)
+        set_scale(dg, ax, Ne, gen, ylabel, rescaling)
     else:
         ax.set_xticks([])
         ax.set_yticks([])
@@ -428,7 +449,7 @@ def plot_demography(dg, fignum=1, leaf_order=None, labels=None, ax=None,
         plt.show()
 
 
-def draw_scale(dg, ax, Ne, gen):
+def set_scale(dg, ax, Ne, gen, ylabel, rescaling):
     """
     If Ne is set, we rescale time by Ne, and if gen is also set, we rescale
     into years.
@@ -444,34 +465,31 @@ def draw_scale(dg, ax, Ne, gen):
     
     ax.spines['left'].set_position(('outward', 10))
     ax.set_ylim(bottom=0)
-    y_ticks = ax.get_yticks()
-    leaf_times = util.get_accumulated_times(dg)
-    rescaling = max(leaf_times.values())
-    # if Ne and gen are given, we rescale the time
-    if Ne is None and dg.Ne is not None:
-        Ne = dg.Ne
+    #y_ticks = ax.get_yticks()
+    #leaf_times = util.get_accumulated_times(dg)
+    #rescaling = max(leaf_times.values())
     
-    if Ne is not None:
-        if gen is not None:
-            rescaling *= (2*Ne * gen / 1e3)
-            y_ticklabels = y_ticks * rescaling
-            y_ticklabels = ["{:.1f}".format(y) for y in y_ticklabels]
-            ylabel = r'Time in past (ky)'
-        else:
-            rescaling *= 2*Ne
-            y_ticklabels = y_ticks * rescaling
-            y_ticklabels = ["{:.1f}".format(y) for y in y_ticklabels]
-            ylabel = r'Generations in past'
-    else:
-        y_ticklabels = y_ticks * rescaling
-        y_ticklabels = ["{:.3f}".format(y) for y in y_ticklabels]
-        ylabel = r'$2N_e$ generations in past'
+#    if Ne is not None:
+#        if gen is not None:
+#            rescaling *= (2*Ne * gen / 1e3)
+#            y_ticklabels = y_ticks * rescaling
+#            y_ticklabels = ["{:.1f}".format(y) for y in y_ticklabels]
+#            ylabel = r'Time in past (ky)'
+#        else:
+#            rescaling *= 2*Ne
+#            y_ticklabels = y_ticks * rescaling
+#            y_ticklabels = ["{:.1f}".format(y) for y in y_ticklabels]
+#            ylabel = r'Generations in past'
+#    else:
+#        y_ticklabels = y_ticks * rescaling
+#        y_ticklabels = ["{:.3f}".format(y) for y in y_ticklabels]
+#        ylabel = r'$2N_e$ generations in past'
     
     ax.set_ylabel(ylabel)
-    ax.set_yticklabels(y_ticklabels)
+#    ax.set_yticklabels(y_ticklabels)
 
 
-def draw_migrations(ax, dg, pop_locations, intervals):
+def draw_migrations(ax, dg, pop_locations, intervals, rescaling):
     drawn_heights = []
     buffer = 0.02
     for pop in dg.G.nodes:
@@ -504,7 +522,7 @@ def draw_migrations(ax, dg, pop_locations, intervals):
                         x_from = x_r_from[np.argmin(abs(y_from-y))]
                         x_to = x_l_to[np.argmin(abs(y_to-y))]
                         ax.annotate(
-                            '', xy=(x_to, 1-y), xytext=(x_from, 1-y),
+                            '', xy=(x_to, (1-y)*rescaling), xytext=(x_from, (1-y)*rescaling),
                             xycoords='data', textcoords='data',
                             arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'lw': np.log(1+rate)})
                         drawn_heights.append(y)
@@ -515,13 +533,13 @@ def draw_migrations(ax, dg, pop_locations, intervals):
                         x_from = x_l_from[np.argmin(abs(y_from-y))]
                         x_to = x_r_to[np.argmin(abs(y_to-y))]
                         ax.annotate(
-                            '', xy=(x_to, 1-y), xytext=(x_from, 1-y),
+                            '', xy=(x_to, (1-y)*rescaling), xytext=(x_from, (1-y)*rescaling),
                             xycoords='data', textcoords='data',
                             arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'lw': np.log(1+rate)})
                         drawn_heights.append(y)
 
 
-def draw_pulse_event(ax, pop_from, pulse_event, pop_locations, intervals):
+def draw_pulse_event(ax, pop_from, pulse_event, pop_locations, intervals, rescaling):
     pop_to, time_frac, weight = pulse_event
     xs_from = pop_locations[pop_from][:2]
     xs_to = pop_locations[pop_to][:2]
@@ -536,16 +554,16 @@ def draw_pulse_event(ax, pop_from, pulse_event, pop_locations, intervals):
     y = 1-y
     
     ax.annotate(
-        '', xy=(x_to, y), xycoords='data',
-        xytext=(x_from, y), textcoords='data',
+        '', xy=(x_to, y*rescaling), xycoords='data',
+        xytext=(x_from, y*rescaling), textcoords='data',
         arrowprops={'arrowstyle': '->'})
     ax.annotate(
-        f'{weight:.2f}', xy=(np.mean([x_from, x_to]), y), xycoords='data',
+        f'{weight:.2f}', xy=(np.mean([x_from, x_to]), y*rescaling), xycoords='data',
         xytext=(0, 3), textcoords='offset points', ha='center')
 
 
 
-def draw_boundaries(ax, pop_locations, intervals, dg, color):
+def draw_boundaries(ax, pop_locations, intervals, dg, color, rescaling):
     # draw edges around populations, except where two touch on top/bottom
     for pop in dg.G.nodes:
         if 'frozen' in dg.G.nodes[pop] and dg.G.nodes[pop]['frozen'] is True:
@@ -554,14 +572,14 @@ def draw_boundaries(ax, pop_locations, intervals, dg, color):
             linestyle = '-'
         # draw left and right edges
         y, x_l, x_r = get_xs(pop, dg, pop_locations, intervals)
-        ax.plot(x_l, 1-y, color=color, lw=1, linestyle=linestyle)
-        ax.plot(x_r, 1-y, color=color, lw=1, linestyle=linestyle)
+        ax.plot(x_l, (1-y)*rescaling, color=color, lw=1, linestyle=linestyle)
+        ax.plot(x_r, (1-y)*rescaling, color=color, lw=1, linestyle=linestyle)
         
         # draw bottoms
         x0, x1 = pop_locations[pop][:2]
         y = 1-intervals[pop][1]
         if pop in dg.leaves:
-            ax.plot((x0, x1), (y, y), color=color, lw=1, linestyle=linestyle)
+            ax.plot((x0, x1), (y*rescaling, y*rescaling), color=color, lw=1, linestyle=linestyle)
         else:
             # draw bottom, minus overlap with tops of children
             x0, x1 = pop_locations[pop][:2]
@@ -594,13 +612,13 @@ def draw_boundaries(ax, pop_locations, intervals, dg, color):
                                     xs[ii] = (x0, s0)
                                     xs.append((s1, x1))
             for (x0, x1) in xs:
-                ax.plot((x0, x1), (y, y), color=color, lw=1, linestyle=linestyle)
+                ax.plot((x0, x1), (y*rescaling, y*rescaling), color=color, lw=1, linestyle=linestyle)
                         
         # draw tops
         x0, x1 = pop_locations[pop][2:]
         y = 1-intervals[pop][0]
         if pop == dg.root:
-            ax.plot((x0, x1), (y, y), color=color, lw=1, linestyle=linestyle)
+            ax.plot((x0, x1), (y*rescaling, y*rescaling), color=color, lw=1, linestyle=linestyle)
         else:
             # draw tops, minus overlap with bottoms of children
             xs = [(x0, x1)]
@@ -630,9 +648,9 @@ def draw_boundaries(ax, pop_locations, intervals, dg, color):
                                 xs[ii] = (x0, s0)
                                 xs.append((s1, x1))
             for (x0, x1) in xs:
-                ax.plot((x0, x1), (y, y), color=color, lw=1, linestyle=linestyle)
+                ax.plot((x0, x1), (y*rescaling, y*rescaling), color=color, lw=1, linestyle=linestyle)
 
-def draw_pop_connections(ax, edge, pop_locations, intervals, color):
+def draw_pop_connections(ax, edge, pop_locations, intervals, color, rescaling):
     pop_from, pop_to = edge
     from_left, from_right = pop_locations[pop_from][:2]
     to_left, to_right = pop_locations[pop_to][2:]
@@ -642,16 +660,16 @@ def draw_pop_connections(ax, edge, pop_locations, intervals, color):
         y_to = intervals[pop_to][0]
         assert y_to == y_from, "y_to is not y_from in pop_connections"
         # draw line/arrow
-        ax.plot((from_right, to_left), (1-y_to,1-y_to), color=color, lw=1)
+        ax.plot((from_right, to_left), ((1-y_to)*rescaling, (1-y_to)*rescaling), color=color, lw=1)
     elif from_left > to_right:
         y_from = intervals[pop_from][1]
         y_to = intervals[pop_to][0]
         assert y_to == y_from, "y_to is not y_from in pop_connections"
         # draw line/arrow
-        ax.plot((to_right, from_left), (1-y_to,1-y_to), color=color, lw=1)
+        ax.plot((to_right, from_left), ((1-y_to)*rescaling, (1-y_to)*rescaling), color=color, lw=1)
 
 
-def draw_pop(ax, node, dg, pop_locations, intervals, align_left=None,
+def draw_pop(ax, node, dg, pop_locations, intervals, rescaling, align_left=None,
              stacked=None, flipped=[], c='k', h='/', padding=0.5):
     """
     if a split, draw halfway in between left- and right- most children
@@ -722,10 +740,10 @@ def draw_pop(ax, node, dg, pop_locations, intervals, align_left=None,
     y, x_l, x_r = get_xs(node, dg, pop_locations, intervals)
 
     if 'frozen' in dg.G.nodes[node] and dg.G.nodes[node]['frozen'] is True:
-        ax.fill_betweenx(1-y, x_l, x_r, 
+        ax.fill_betweenx((1-y)*rescaling, x_l, x_r, 
                          facecolor=c, hatch=h, alpha=0.1, linewidth=0.0)
     else:
-        ax.fill_betweenx(1-y, x_l, x_r, 
+        ax.fill_betweenx((1-y)*rescaling, x_l, x_r, 
                          facecolor=c, hatch=h, alpha=0.5)
 
 def get_pop_corners(node, bottom_center, dg, pop_locations, intervals, flipped):
