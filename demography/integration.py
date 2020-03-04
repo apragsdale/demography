@@ -408,7 +408,7 @@ def evolve_ld(dg, rho=None, theta=None, pop_ids=None):
         selfing_rates, events) = get_moments_arguments(dg_sim)
 
     # initialize the LD stats at the root of the demography
-    Y = ld_root_equilibrium(dg_sim.G.nodes[dg.root]['nu'], theta, rho, dg.root)
+    Y = ld_root_equilibrium(dg_sim.G.nodes[dg_sim.root]['nu'], theta, rho, dg_sim.root)
     
     # step through the list of integrations and events
     for ii, (pops, T, nu, mig_mat, frozen, selfing) in enumerate(zip(
@@ -548,14 +548,32 @@ Functions to evolve using moments to get the frequency spectrum (max 5 pops)
 """
 
 ### this should be fixed for when nu != 1 to not have to integrate out
-def moments_fs_root_equilibrium(ns0, nu, theta, pop_id, gamma=None, h=0.5):
-    if gamma is not None:
-        ss = moments.LinearSystem_1D.steady_state_1D(ns0, gamma=gamma, h=h) * theta
+def moments_fs_root_equilibrium(ns0, nu, theta, pop_id, gamma=None, h=0.5,
+                                reversible=False):
+    if reversible is False:
+        if gamma is not None:
+            ss = moments.LinearSystem_1D.steady_state_1D(ns0, gamma=gamma, h=h,
+                                                         theta=theta)
+        else:
+            ss = moments.LinearSystem_1D.steady_state_1D(ns0, theta=theta)
+        fs = moments.Spectrum(ss, pop_ids=[pop_id])
     else:
-        ss = moments.LinearSystem_1D.steady_state_1D(ns0) * theta
-    fs = moments.Spectrum(ss, pop_ids=[pop_id])
+        assert h==0.5, "finite genome integration can only be done with h=1/2"
+        if gamma is None:
+            gamma = 0.0
+        ss = moments.LinearSystem_1D.steady_state_1D_reversible(ns0,
+                                                                gamma=gamma,
+                                                                theta_fd=theta,
+                                                                theta_bd=theta)
+        fs = moments.Spectrum(ss, pop_ids=[pop_id], mask_corners=False)
+
     if nu != 1.:
-        fs.integrate([nu], 40, theta=theta, gamma=gamma, h=h)
+        if reversible is False:
+            fs.integrate([nu], 40, theta=theta, gamma=gamma, h=h)
+        else:
+            fs.integrate([nu], 40, gamma=gamma, h=h,
+                         finite_genome=True, theta_fd=theta, theta_bd=theta)
+
     return fs
 
 
@@ -630,7 +648,8 @@ def get_number_needed_lineages(dg, pop_ids, sample_sizes, events):
     return lineages
 
 def evolve_sfs_moments(dg, theta=None, pop_ids=None, 
-                       sample_sizes=None, gamma=None, h=0.5):
+                       sample_sizes=None, gamma=None, h=0.5,
+                       reversible=False):
     """
     pop_ids and sample_sizes must be of same length, and in same order 
     """
@@ -641,6 +660,9 @@ def evolve_sfs_moments(dg, theta=None, pop_ids=None,
             theta = dg.theta
         else:
             theta = 1
+    
+    if gamma is None:
+        gamma = 0.0
 
     dg_sim = augment_with_frozen(dg, pop_ids)
 
@@ -651,11 +673,12 @@ def evolve_sfs_moments(dg, theta=None, pop_ids=None,
 
     check_max_num_pops(present_pops, 5)
 
-    num_lineages = get_number_needed_lineages(dg, pop_ids, sample_sizes,
+    num_lineages = get_number_needed_lineages(dg_sim, pop_ids, sample_sizes,
                                               events)
     # initialize the sfs at the root of the demography
     fs = moments_fs_root_equilibrium(num_lineages[dg_sim.root], nus[0][0], 
-                                     theta, dg_sim.root, gamma=gamma, h=h)
+                                     theta, dg_sim.root, gamma=gamma, h=h,
+                                     reversible=reversible)
 
     # step through the list of integrations and events
     for ii, (pops, T, nu, mig_mat, frozen) in enumerate(zip(
@@ -665,8 +688,14 @@ def evolve_sfs_moments(dg, theta=None, pop_ids=None,
         nu_epoch = get_pop_size_function(nu)
 
         # integrate this epoch
-        fs.integrate(nu_epoch, T, theta=theta, m=mig_mat,
-                     frozen=frozen, gamma=[gamma]*len(nu), h=[h]*len(nu))
+        if reversible is False:
+            fs.integrate(nu_epoch, T, theta=theta, m=mig_mat,
+                         frozen=frozen, gamma=[gamma]*len(nu), h=[h]*len(nu))
+        elif reversible is True:
+            fs.integrate(nu_epoch, T, m=mig_mat,
+                         frozen=frozen, gamma=[gamma]*len(nu), h=[h]*len(nu),
+                         finite_genome=reversible,
+                         theta_fd=theta, theta_bd=theta)
         
         # apply events
         if ii < len(events):

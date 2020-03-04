@@ -147,7 +147,8 @@ class DemoGraph():
         return y
 
     def SFS(self, pop_ids, sample_sizes, engine='moments',
-            theta=None, s=0, h=0.5, Ne=None, u=None, pts=None):
+            theta=None, s=0, h=0.5, Ne=None, u=None, pts=None,
+            reversible=False):
         """
         Computes the expected frequency spectrum for the given populations and
             sample sizes.
@@ -161,9 +162,15 @@ class DemoGraph():
             h (dominance coefficient)
             
         """
-        if theta is None and self.Ne is None:
-            if Ne is not None and u is not None:
-                theta = 4*Ne*u
+        if theta is None:
+            if u is not None:
+                if Ne is None and self.Ne is None:
+                    print("warning: u is given, but no Ne - setting theta to 1")
+                    theta = 1
+                if Ne is not None:
+                    theta = 4*Ne*u
+                if self.Ne is not None:
+                    theta = 4*self.Ne*u
             else:
                 theta = 1.
 
@@ -175,11 +182,15 @@ class DemoGraph():
             gamma = 0.0
 
         if engine == 'moments':
+            if reversible is True:
+                assert h == 0.5, "reversible model requires h=1/2"
             fs = integration.evolve_sfs_moments(self, theta=theta, 
                                                 pop_ids=pop_ids,
                                                 sample_sizes=sample_sizes,
-                                                gamma=gamma, h=h)
+                                                gamma=gamma, h=h,
+                                                reversible=reversible)
         elif engine == 'dadi':
+            assert reversible is False, "Can't simulate finite genome with dadi"
             util.max_two_successors(self)
             assert pts is not None, "pts must be given to integrate with dadi"
             fs = integration.evolve_sfs_dadi(self, pts, theta=theta, 

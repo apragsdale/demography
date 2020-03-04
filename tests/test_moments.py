@@ -197,6 +197,15 @@ class TestMomentsIntegration(unittest.TestCase):
         fs2.integrate([1,1], .3)
         fs2.integrate([1,1], .2, frozen=[False,True])
         self.assertTrue(np.allclose(fs.data, fs2.data))
+    
+    def test_reversible_ss(self):
+        pass
+    
+    def test_reversible_integration(self):
+        pass
+    
+    def test_reversible_manips(self):
+        pass
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsIntegration)
 
