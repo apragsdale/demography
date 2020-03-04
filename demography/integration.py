@@ -710,7 +710,8 @@ def evolve_sfs_moments(dg, theta=None, pop_ids=None,
 
     # at the end, make sure the populations are in the right order
     if pop_ids is not None:
-        fs = moments_rearrange_pops(fs, pop_ids)
+        pop_ids_out = [p for p in pop_ids if p in fs.pop_ids]
+        fs = moments_rearrange_pops(fs, pop_ids_out)
 
     return fs
 
