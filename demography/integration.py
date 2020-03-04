@@ -386,7 +386,7 @@ def ld_root_equilibrium(nu, theta, rho, pop_id, selfing=None):
     return Y
 
 
-def evolve_ld(dg, rho=None, theta=None, pop_ids=None):
+def evolve_ld(dg, rho=None, theta=None, pop_ids=None, augment=True):
     """
     integrates moments.LD along the demography, which returns an LDStats
     object, for the given rhos, where rho=4*Ne*r.
@@ -400,7 +400,10 @@ def evolve_ld(dg, rho=None, theta=None, pop_ids=None):
         theta = dg.theta
     # check that theta is reasonable - warning if not
     
-    dg_sim = augment_with_frozen(dg, pop_ids)
+    if augment is True:
+        dg_sim = augment_with_frozen(dg, pop_ids)
+    else:
+        dg_sim = dg
     
     # get the features from the dg
     # this ignores the features of the root used for initialization
@@ -523,7 +526,7 @@ def ld_pulse(Y, pop_from, pop_to, pulse_weight):
         ind_to = Y.pop_ids.index(pop_to)
         Y = Y.pulse_migrate(ind_from+1, ind_to+1, pulse_weight)
     else:
-        print("warning: pop_to in pulse_migrate isn't in present pops")
+        print(f"warning: pop_to ({pop_to}) in pulse_migrate isn't in present pops {Y.pop_ids}")
     return Y
 
 
@@ -649,7 +652,7 @@ def get_number_needed_lineages(dg, pop_ids, sample_sizes, events):
 
 def evolve_sfs_moments(dg, theta=None, pop_ids=None, 
                        sample_sizes=None, gamma=None, h=0.5,
-                       reversible=False):
+                       reversible=False, augment=True):
     """
     pop_ids and sample_sizes must be of same length, and in same order 
     """
@@ -664,7 +667,10 @@ def evolve_sfs_moments(dg, theta=None, pop_ids=None,
     if gamma is None:
         gamma = 0.0
 
-    dg_sim = augment_with_frozen(dg, pop_ids)
+    if augment is True:
+        dg_sim = augment_with_frozen(dg, pop_ids)
+    else:
+        dg_sim = dg
 
     # get the features from the dg
     # this ignores the features of the root used for initialization
@@ -725,7 +731,7 @@ def moments_apply_events(fs, epoch_events, next_present_pops, lineages):
             elif e[0] == 'pulse':
                 fs = moments_pulse(fs, e[1], e[2], e[3]) # pop_from, pop_to, f
             elif e[0] == 'marginalize':
-                fs = fs.marginalize(fs.pop_ids.index(e[1])+1)
+                fs = fs.marginalize([fs.pop_ids.index(e[1])])
     # make sure correct order of pops for the next epoch
     fs = moments_rearrange_pops(fs, next_present_pops)
     return fs
@@ -837,7 +843,7 @@ def moments_pulse(fs, pop_from, pop_to, pulse_weight):
         n_from_post = num_lineages_pulse_post(n_from, n_to, pulse_weight)
         fs = moments.Manips.admix_inplace(fs, ind_from, ind_to, n_from_post, pulse_weight)
     else:
-        print("warning: pop_to in pulse_migrate isn't in present pops")
+        print(f"warning: pop_to ({pop_to}) in pulse_migrate isn't in present pops {fs.pop_ids}")
     return fs
 
 

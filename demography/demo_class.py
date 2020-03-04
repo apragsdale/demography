@@ -119,7 +119,7 @@ class DemoGraph():
             theta = 1.0
         return theta
 
-    def LD(self, pop_ids, rho=None, r=None, theta=None, u=None):
+    def LD(self, pop_ids, rho=None, r=None, theta=None, u=None, augment=True):
         """
         
         """
@@ -143,12 +143,13 @@ class DemoGraph():
                 else:
                     theta = 4*self.Ne*u
         
-        y = integration.evolve_ld(self, rho=rho, theta=theta, pop_ids=pop_ids)
+        y = integration.evolve_ld(self, rho=rho, theta=theta, pop_ids=pop_ids,
+                                  augment=augment)
         return y
 
     def SFS(self, pop_ids, sample_sizes, engine='moments',
             theta=None, s=0, h=0.5, Ne=None, u=None, pts=None,
-            reversible=False):
+            reversible=False, augment=True):
         """
         Computes the expected frequency spectrum for the given populations and
             sample sizes.
@@ -188,7 +189,8 @@ class DemoGraph():
                                                 pop_ids=pop_ids,
                                                 sample_sizes=sample_sizes,
                                                 gamma=gamma, h=h,
-                                                reversible=reversible)
+                                                reversible=reversible,
+                                                augment=augment)
         elif engine == 'dadi':
             assert reversible is False, "Can't simulate finite genome with dadi"
             util.max_two_successors(self)
@@ -196,7 +198,8 @@ class DemoGraph():
             fs = integration.evolve_sfs_dadi(self, pts, theta=theta, 
                                              pop_ids=pop_ids,
                                              sample_sizes=sample_sizes,
-                                             gamma=gamma, h=h)
+                                             gamma=gamma, h=h,
+                                                augment=augment)
         return fs
 
 
