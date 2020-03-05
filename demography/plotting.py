@@ -427,15 +427,20 @@ def plot_demography(dg, fignum=1, leaf_order=None, labels=None, ax=None,
         draw_boundaries(ax, pop_locations, intervals, dg, color, rescaling)
     
     # label leaf populations
-    for leaf,label in zip(leaf_order,labels):
+    xticks = []
+    xticklabels = []
+    for leaf in leaf_order:
         center = np.mean(pop_locations[leaf][:2])
-        bottom = 1-intervals[leaf][1]
-        ax.text(center, (bottom-0.1)*rescaling, label, ha='center', va='center')
+        #bottom = 1-intervals[leaf][1]
+        #ax.text(center, (bottom-0.1)*rescaling, label, ha='center', va='center')
+        xticks.append(center)
+
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(labels)
     
     if scale == True:
         set_scale(dg, ax, Ne, gen, ylabel, rescaling)
     else:
-        ax.set_xticks([])
         ax.set_yticks([])
     
     
@@ -455,38 +460,16 @@ def set_scale(dg, ax, Ne, gen, ylabel, rescaling):
     into years.
     Otherwise we draw the scale in units of 2Ne generations
     """
-    # xticks off
-    ax.set_xticks([])
     # draw a scale bar on the left hand side
     # hide the bottom, top, and right spines
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
+    
+    ax.spines['bottom'].set_position(('outward', 10))
     
     ax.spines['left'].set_position(('outward', 10))
     ax.set_ylim(bottom=0)
-    #y_ticks = ax.get_yticks()
-    #leaf_times = util.get_accumulated_times(dg)
-    #rescaling = max(leaf_times.values())
-    
-#    if Ne is not None:
-#        if gen is not None:
-#            rescaling *= (2*Ne * gen / 1e3)
-#            y_ticklabels = y_ticks * rescaling
-#            y_ticklabels = ["{:.1f}".format(y) for y in y_ticklabels]
-#            ylabel = r'Time in past (ky)'
-#        else:
-#            rescaling *= 2*Ne
-#            y_ticklabels = y_ticks * rescaling
-#            y_ticklabels = ["{:.1f}".format(y) for y in y_ticklabels]
-#            ylabel = r'Generations in past'
-#    else:
-#        y_ticklabels = y_ticks * rescaling
-#        y_ticklabels = ["{:.3f}".format(y) for y in y_ticklabels]
-#        ylabel = r'$2N_e$ generations in past'
-    
     ax.set_ylabel(ylabel)
-#    ax.set_yticklabels(y_ticklabels)
 
 
 def draw_migrations(ax, dg, pop_locations, intervals, rescaling):
