@@ -14,7 +14,10 @@ try:
 except ImportError:
     msprime_installed = 0
 
+import math
+import networkx as nx
 import numpy as np
+import demography
 from . import integration
 from . import util
 
@@ -220,3 +223,249 @@ def get_samples(dg, pop_ids, sample_sizes):
         samples.extend([msprime.Sample(pop_indexes[pop], time=pop_time)] * ns)
     return samples
 
+
+def graph_from_msprime(demographic_events, migration_matrix,
+                       population_configurations, populations=None):
+    """
+    Construct a DemoGraph from msprime `demographic_events` and
+    `population_configurations`. An optional list of population names may
+    be provided in `populations`, in the same order as population_configurations.
+    """
+
+    if populations is None:
+        n_pops = len(population_configurations)
+        populations = [str(i) for i in range(1, n_pops+1)]
+
+    G = nx.DiGraph()
+
+    for j, pc in enumerate(population_configurations):
+        attr = dict(
+                end_time=0, end_size=pc.initial_size,
+                growth_rate=pc.growth_rate)
+
+        # initial migrations
+        m_dict = dict()
+        for k, m in enumerate(migration_matrix[j]):
+            pop_k = populations[k]
+            if m != 0:
+                m_dict[pop_k] = m
+        if len(m_dict) > 0:
+            attr.update(m=m_dict)
+
+        G.add_node(populations[j], **attr)
+
+        """
+        # distinguish leaf nodes in graphviz diagrams
+        attr.update(color="red", shape="rect")
+        """
+
+    def get_parent(G, x):
+        edges = G.in_edges(x)
+        if len(edges) == 0:
+            return None
+        assert len(edges) == 1, f"{x} has too many parent nodes"
+        parent, _ = next(iter(edges))
+        return parent
+
+    def top_of_lineage(G, x):
+        y = get_parent(G, x)
+        while y is not None:
+            x = y
+            y = get_parent(G, x)
+        return x
+
+    def start_size(G, x, time):
+        attr = G.nodes[x]
+        end_time = attr["end_time"]
+        end_size = attr["end_size"]
+        growth_rate = attr.get("growth_rate")
+        if growth_rate is not None:
+            start_size = end_size * math.exp(growth_rate * (end_time - time))
+        else:
+            start_size = end_size
+        return start_size
+
+    prev_event_time = 0
+    for i, event in enumerate(demographic_events):
+        if event.time < prev_event_time:
+            raise ValueError(
+                    "demographic events must be sorted in time-ascending order")
+        prev_event_time = event.time
+
+        if isinstance(event, msprime.MassMigration):
+            source = top_of_lineage(G, populations[event.source])
+            dest = top_of_lineage(G, populations[event.dest])
+
+            if event.proportion == 1:
+                t_dest = G.nodes[dest].get("end_time")
+                if t_dest < event.time:
+                    dest_start_size = start_size(G, dest, event.time)
+                    G.nodes[dest].update(
+                            start_time=event.time,
+                            start_size=dest_start_size)
+                    new = dest + "/^"
+                    G.add_node(
+                            new, end_time=event.time,
+                            end_size=dest_start_size,
+                            growth_rate=G.nodes[dest].get("growth_rate"))
+                    G.add_edge(new, dest)
+                    dest = new
+                G.nodes[source].update(
+                        start_time=event.time,
+                        start_size=start_size(G, source, event.time))
+                G.add_edge(dest, source)
+            else:
+                pulse = G.nodes[source].get("pulse", set())
+                pulse.add((dest, event.time, event.proportion))
+                G.nodes[source]["pulse"] = pulse
+
+        elif isinstance(event, msprime.PopulationParametersChange):
+            pop = top_of_lineage(G, populations[event.population])
+            t_pop = G.nodes[pop].get("end_time")
+            if t_pop < event.time:
+                G.nodes[pop].update(
+                    start_time=event.time,
+                    start_size=start_size(G, pop, event.time))
+                new = pop + "/^"
+                G.add_node(
+                        new, end_time=event.time,
+                        end_size=event.initial_size,
+                        growth_rate=event.growth_rate)
+                G.add_edge(new, pop)
+            else:
+                G.nodes[pop].update(
+                        end_size=event.initial_size,
+                        growth_rate=event.growth_rate)
+
+        elif isinstance(event, msprime.MigrationRateChange):
+            m = event.rate
+            if event.matrix_index is not None:
+                j, k = event.matrix_index
+                dest = top_of_lineage(G, populations[j])
+                source = top_of_lineage(G, populations[k])
+                t_dest = G.nodes[dest].get("end_time")
+                if t_dest < event.time:
+                    dest_start_size = start_size(G, dest, event.time)
+                    G.nodes[dest].update(
+                            start_time=event.time,
+                            start_size=dest_start_size)
+                    new = dest + "/^"
+                    G.add_node(
+                            new, end_time=event.time,
+                            end_size=dest_start_size,
+                            growth_rate=G.nodes[dest].get("growth_rate"),
+                            m={source: m})
+                    G.add_edge(new, dest)
+                else:
+                    G.nodes[dest].update(m={source: m})
+            else:
+                # all populations have migration rates changed
+                current_pops = set()
+                for pop in populations:
+                    current_pops.add(top_of_lineage(G, pop))
+                for pop in current_pops:
+                    m_dict_cur = G.nodes[pop].get("m", dict())
+                    m_dict = dict()
+                    new_epoch = False
+                    if m == 0 and len(m_dict_cur) > 0:
+                        new_epoch = True
+                    elif m > 0:
+                        for source in current_pops:
+                            if pop == source:
+                                continue
+                            m_dict[source] = m
+                            if m != m_dict_cur.get(source, 0):
+                                new_epoch = True
+                    if new_epoch:
+                        t_pop = G.nodes[pop].get("end_time")
+                        if t_pop < event.time:
+                            pop_start_size = start_size(G, pop, event.time)
+                            G.nodes[pop].update(
+                                    start_time=event.time,
+                                    start_size=pop_start_size)
+                            new = pop + "/^"
+                            attr = dict(
+                                    end_time=event.time,
+                                    end_size=pop_start_size,
+                                    growth_rate=G.nodes[pop].get("growth_rate"))
+                            if len(m_dict) > 0:
+                                attr.update(m=m_dict)
+                            G.add_node(new, **attr)
+                            G.add_edge(new, pop)
+                        else:
+                            # whew! just update existing nodes here
+                            if len(m_dict) > 0:
+                                G.nodes[pop].update(m=m_dict)
+                            else:
+                                del G.nodes[pop]["m"]
+
+    assert nx.is_directed_acyclic_graph(G), \
+            "Cycle detected. Please report this bug, and include the " \
+            "demographic model that triggered this error."
+
+    # Non-treeness is probably an internal error. But its possible the user
+    # provided a demographic model corresponding to multiple isolated subgraphs.
+    assert nx.is_tree(G)
+
+    root = next(nx.topological_sort(G))
+    G = nx.relabel_nodes(G, {root: "root"})
+    root = "root"
+
+    if G.nodes[root].get("start_size") is None:
+        G.nodes[root].update(
+                start_time=G.nodes[root]["end_time"],
+                start_size=G.nodes[root]["end_size"])
+    Ne_ref = G.nodes[root].get("start_size")
+
+    for node in nx.topological_sort(G):
+        attr = G.nodes[node]
+        start_size = attr.get("start_size")
+        end_size = attr.get("end_size")
+        start_time = attr.get("start_time")
+        end_time = attr.get("end_time")
+
+        assert start_size is not None, f"{node} has no start_size"
+        assert end_size is not None, f"{node} has no end_size"
+        assert start_time is not None, f"{node} has no start_time"
+        assert end_time is not None, f"{node} has no end_time"
+
+        if end_size is None or math.isclose(start_size, end_size, rel_tol=1e-3):
+            attr.update(nu=start_size/Ne_ref)
+        else:
+            attr.update(nu0=start_size/Ne_ref, nuF=end_size/Ne_ref)
+
+        T = (start_time - end_time) / (2 * Ne_ref)
+        attr.update(T=T)
+
+        # fix pulse times to be a fraction of the epoch length
+        pulses = attr.get("pulse")
+        if pulses is not None:
+            pulses2 = set()
+            for source, time, proportion in pulses:
+                t_frac = (start_time - time) / (start_time - end_time)
+                pulses2.add((source, t_frac, proportion))
+            attr.update(pulse=pulses2)
+
+        # scale migration rates by Ne
+        m_dict = attr.get("m")
+        if m_dict is not None:
+            for source in m_dict.keys():
+                m_dict[source] *= 2 * Ne_ref
+
+        """
+        # make informative label for graphviz diagrams
+        label = node
+        #for k in ("start_time", "end_time", "start_size", "end_size"):
+        for k in ("T", "nu", "nu0", "nuF"):
+            if k in attr:
+                label += f"\n{k}={attr[k]:.3f}"
+        if "pulse" in attr:
+            for source, t, prop in attr["pulse"]:
+                label += f"\npulse[{source}]: t_frac={t:.3f}, m={prop:.3g}"
+        if "m" in attr:
+            for source, prop in attr["m"].items():
+                label += f"\nm[{source}]={prop:.3g}"
+        attr.update(label=label)
+        """
+
+    return demography.DemoGraph(G, Ne=Ne_ref)
