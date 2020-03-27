@@ -156,7 +156,8 @@ def draw_edge(ax, edge, dg, pop_locations, offset=0.005, buffer=0.03):
         arrowprops={'arrowstyle': '->'})
     if annot == True:
         ax.annotate(
-            f'{weight}', xy=(np.mean([x_from, x_to]), np.mean([y_from, y_to])), xycoords='data',
+            f'{weight}', xy=(np.mean([x_from, x_to]), 
+            np.mean([y_from, y_to])), xycoords='data',
             xytext=(4, 0), textcoords='offset points')
 
 
@@ -179,7 +180,7 @@ def draw_pulses(ax, dg, pop_locations, offset):
                     xytext=(x_from, y_from), textcoords='data',
                     arrowprops={'arrowstyle': '->', 'ls': 'dashed'})
                 ax.annotate(
-                    f'{weight}', xy=(np.mean([x_from, x_to]), 
+                    "{0:.2g}".format(weight), xy=(np.mean([x_from, x_to]), 
                                      np.mean([y_from, y_to])),
                     xycoords='data',
                     xytext=(0, 3), textcoords='offset points')
@@ -541,7 +542,7 @@ def draw_pulse_event(ax, pop_from, pulse_event, pop_locations, intervals, rescal
         xytext=(x_from, y*rescaling), textcoords='data',
         arrowprops={'arrowstyle': '->'})
     ax.annotate(
-        f'{weight:.2f}', xy=(np.mean([x_from, x_to]), y*rescaling), xycoords='data',
+        "{0:.2g}".format(weight), xy=(np.mean([x_from, x_to]), y*rescaling), xycoords='data',
         xytext=(0, 3), textcoords='offset points', ha='center')
 
 
