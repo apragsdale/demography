@@ -870,7 +870,8 @@ Functions to evolve using dadi to get the frequency spectrum (max 3 pops)
 """
 
 def evolve_sfs_dadi(dg, pts, theta=None, pop_ids=None, 
-                       sample_sizes=None, gamma=None, h=0.5):
+                       sample_sizes=None, gamma=None, h=0.5,
+                       augment=False):
     """
     pop_ids and sample_sizes must be of same length, and in same order 
     pts: either integer for number of points to use in integration (using
@@ -887,7 +888,10 @@ def evolve_sfs_dadi(dg, pts, theta=None, pop_ids=None,
         else:
             theta = 1
 
-    dg_sim = augment_with_frozen(dg, pop_ids)
+    if augment is True:
+        dg_sim = augment_with_frozen(dg, pop_ids)
+    else:
+        dg_sim = dg
 
     # get the features from the dg
     # this ignores the features of the root used for initialization

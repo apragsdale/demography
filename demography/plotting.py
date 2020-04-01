@@ -357,10 +357,11 @@ def plot_demography(dg, fignum=1, leaf_order=None, labels=None, ax=None,
         else:
             rescaling = 2*Ne
             ylabel = r'Generations in past'
+        rescaling *= max(leaf_times.values())
     else:
         ylabel = r'$2N_e$ generations in past'
+        rescaling = 1
     
-    rescaling *= max(leaf_times.values())
 
     
     # We'll draw populations in reverse order of their extinction
