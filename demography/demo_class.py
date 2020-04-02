@@ -8,6 +8,7 @@ from . import integration
 from . import msprime_functions
 from . import util
 from . import coalescence_rates
+from . import tmrcas
 import tskit
 
 
@@ -102,7 +103,7 @@ class DemoGraph():
 
 
     """
-    Functions to simulate or evolve over the demography to get expecte
+    Functions to simulate or evolve over the demography to get expected
     site frequency spectrum or linkage disequilibrium statistics.
     """
 
@@ -308,3 +309,38 @@ class DemoGraph():
         rates = coalescence_rates.all_rates(pop_ids, pop_indexes, pop_config,
                                             mig_mat, demo_events, gens)
         return rates
+
+    """
+    Compute Tmrca's between populations, using a discrete recursion.
+    """
+    
+    def tmrca(self, pop_ids, Ne=None, order=2, selfing=None):
+        """
+        This function computes all (non-central?) moments of Tmrcas within
+        and between populations in the demography.
+         
+        pop_ids: which leaf populations to compute 
+        Ne: effective population size. Must be specified as argument or in
+            the demography
+        order: highest order moment to compute.
+        selfing: if selfing is None, uses selfing rates defined in the
+                 demography, if they are given. Otherwise, defaults to
+                 random mating model. If some subset of the populations have
+                 selfing rates set, we use those selfing rates for those
+                 branches, and then uses the selfing rate defined here for the
+                 rest of the branches. In this case, if selfing is None, it
+                 defaults to 0, so that selfing is disallowed if not specified
+                 in some populations.
+        """
+        if Ne is None:
+            Ne = self.Ne
+            assert Ne is not None, "Ne must be specified to compute Tmrcas"
+
+        if selfing is not None:
+            assert 0 <= selfing <= 1, "selfing rate must be between 0 and 1"
+
+        # returns either a structured array or a dictionary with moments
+        # also need to decide on the basis, central vs non-central moments, etc
+        ETn = tmrcas.compute_tmrcas(self, pop_ids, Ne, order, selfing)
+        
+        return ETn
