@@ -207,7 +207,19 @@ class TestTmrcaFunctions(unittest.TestCase):
         dg = ooa()
         Ne = dg.Ne
         Tmrcas = demography.tmrcas.integrate_tmrca(dg, Ne, order, pop_ids)
-        
+        Tmrcas2 = dg.tmrca(pop_ids, order=order)
+        self.assertTrue(np.all(Tmrcas==Tmrcas2))
+
+    def test_steady_state_orders(self):
+        dg = dg_without_selfing()
+        Ne = 1000
+        T1 = demography.tmrcas.steady_state_tmrca(dg, Ne, 1)
+        T2 = demography.tmrcas.steady_state_tmrca(dg, Ne, 2)
+        T3 = demography.tmrcas.steady_state_tmrca(dg, Ne, 3)
+        T4 = demography.tmrcas.steady_state_tmrca(dg, Ne, 4)
+        self.assertTrue(T1[0] == T2[-1] == T3[-1] == T4[-1])
+        self.assertTrue(T2[-2] == T3[-2] == T4[-2])
+        self.assertTrue(T3[-3] == T4[-3])
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestTmrcaFunctions)
 

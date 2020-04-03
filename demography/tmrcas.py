@@ -22,10 +22,10 @@ def compute_tmrcas(dg, pop_ids, Ne, order, selfing):
     
     if any_selfing:
         T = steady_state_tmrca_selfing(dg, Ne, order, selfing)
-        T = integrate_tmrca_selfing(dg, Ne, order, selfing)
+        T = integrate_tmrca_selfing(dg, Ne, order, selfing, pop_ids)
     else:
         T = steady_state_tmrca(dg, Ne, order)
-        T = integrate_tmrca(dg, Ne, order)
+        T = integrate_tmrca(dg, Ne, order, pop_ids)
     
     return T
 
@@ -153,7 +153,7 @@ def steady_state_tmrca(dg, Ne, order):
     Get the steady state T = -inv(P).dot(ones)
     """
     P = transition(order, [Ne], [[1]])
-    return np.linalg.inv(np.eye(2) - P).dot(np.ones(2))
+    return np.linalg.inv(np.eye(order) - P).dot(np.ones(order))
 
 
 def transition(order, N, m):
