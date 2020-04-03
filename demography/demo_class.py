@@ -339,6 +339,9 @@ class DemoGraph():
         if selfing is not None:
             assert 0 <= selfing <= 1, "selfing rate must be between 0 and 1"
 
+        assert (np.all([pid in self.leaves for pid in pop_ids]),
+                    "pop_ids must be leaves of the demography")
+
         # returns either a structured array or a dictionary with moments
         # also need to decide on the basis, central vs non-central moments, etc
         ETn = tmrcas.compute_tmrcas(self, pop_ids, Ne, order, selfing)
