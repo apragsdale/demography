@@ -53,6 +53,28 @@ def dg_without_selfing():
     return demography.DemoGraph(G)
 
 
+def dg_with_marginalize():
+    Ne = 100
+    G = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('A', nu=1, T=0.2)
+    G.add_node('B0', nu=1, T=0.1)
+    G.add_node('B', nu=1, T=0.1)
+    G.add_node('C', nu=1, T=0.05)
+    G.add_edges_from([('root','A'), ('root','B0'), ('B0','B'), ('B0','C')])
+    return demography.DemoGraph(G, Ne=Ne)
+
+
+def dg_with_pulse():
+    Ne = 100
+    G = nx.DiGraph()
+    G.add_node('root', nu=1, T=0)
+    G.add_node('A', nu=1, T=0.1, pulse={('B', 0.5, 0.1)})
+    G.add_node('B', nu=1, T=0.1)
+    G.add_edges_from([('root','A'), ('root','B')])
+    return demography.DemoGraph(G, Ne=Ne)
+
+
 class TestTmrcaFunctions(unittest.TestCase):
     """
     Tests parsing the DemoGraph object to pass to moments.LD
@@ -70,12 +92,14 @@ class TestTmrcaFunctions(unittest.TestCase):
         num_pops = 3
         tmrcas = demography.tmrcas.tmrca_vector(order, num_pops)
         self.assertTrue(len(tmrcas) == order*num_pops*(num_pops+1)//2)
-        self.assertTrue(tmrcas[1] == 'T1_0_0')
+        self.assertTrue(tmrcas[0] == f'T{order}_0_0')
+        self.assertTrue(tmrcas[1] == f'T{order}_0_1')
+        self.assertTrue(tmrcas[-1] == f'T1_{num_pops-1}_{num_pops-1}')
 
     def test_steady_state(self):
         order = 2
         Ne = 1000
-        P = demography.tmrcas.transition(order, [Ne], [[1]])
+        P = demography.tmrcas.transition(order, [Ne], [[1]], [False])
         T = np.linalg.inv(np.eye(2) - P).dot(np.ones(2))
         dg = dg_without_selfing()
         T2 = demography.tmrcas.steady_state_tmrca(dg, Ne, order)
@@ -88,12 +112,12 @@ class TestTmrcaFunctions(unittest.TestCase):
         m = np.random.rand(num_pops**2).reshape(num_pops, num_pops)
         for i in range(len(m)):
             m[i] /= np.sum(m[i])
-        P = demography.tmrcas.transition(order, [np.inf]*num_pops, m)
-        s = [1]
+        P = demography.tmrcas.transition(order, [np.inf]*num_pops, m,
+                                         [False]*num_pops)
+        s = [1] * (num_pops * (num_pops+1) // 2)
         for i in range(1, order):
-            s.append(s[-1]+2**i)
-        s = s[::-1] * (num_pops * (num_pops+1) // 2)
-        self.assertTrue(np.allclose(np.sum(P, axis=1), s))
+            s.extend([s[-1]+2**i] * (num_pops * (num_pops+1) // 2))
+        self.assertTrue(np.allclose(np.sum(P, axis=1), s[::-1]))
     
     def test_get_gens_in_interval(self):
         Ne = 1000
@@ -169,13 +193,13 @@ class TestTmrcaFunctions(unittest.TestCase):
         pop_from = 'A'
         pops_to = ['B','C']
         order = 2
-        Tmrcas = [1,2]
-        split_Tmrcas, new_pop_ids = demography.tmrcas.split(Tmrcas, pop_from, 
+        T = [1,2]
+        split_Tmrcas, new_pop_ids = demography.tmrcas.split(T, pop_from, 
                                                             pops_to,
                                                             pop_ids, order)
         self.assertTrue(new_pop_ids[0] == 'B')
         self.assertTrue(new_pop_ids[1] == 'C')
-        self.assertTrue(np.allclose(Tmrcas*3, split_Tmrcas))
+        self.assertTrue(np.allclose([T[0],T[0],T[0],T[1],T[1],T[1]], split_Tmrcas))
         
     
     def test_reorder_pops(self):
@@ -220,6 +244,109 @@ class TestTmrcaFunctions(unittest.TestCase):
         self.assertTrue(T1[0] == T2[-1] == T3[-1] == T4[-1])
         self.assertTrue(T2[-2] == T3[-2] == T4[-2])
         self.assertTrue(T3[-3] == T4[-3])
+
+    def test_pulse_admixture(self):
+        pids = ['A','B']
+        Tmrcas = np.array([1,1,1])
+        order = 1
+        pop_from = 'B'
+        pop_to = 'A'
+        f = 0.2
+        
+        Pulse = demography.tmrcas.pulse_matrix(len(pids), order, 1, 0, f)
+        self.assertTrue(np.allclose(np.sum(Pulse, axis=1), 1.))
+        
+        Tmrcas, current_pop_ids = demography.tmrcas.pulse_migrate(Tmrcas,
+            pop_from, pop_to, f, pids, order)
+        self.assertTrue(np.allclose(np.sum(Pulse, axis=1), 1.))
+        
+        dg = dg_with_pulse()
+        order = 2
+        Tmrcas = dg.tmrca(['A','B'], order=order)
+
+    def test_marginalize(self):
+        curr_pids = ['A','B','C']
+        num_pops = len(curr_pids)
+        order = 1
+        pop_ids = ['A','B']
+        Tmrcas = np.arange(1,num_pops*(num_pops+1)/2+1)
+        Tmrcas,curr_pids = demography.tmrcas.marginalize(Tmrcas, 'C', curr_pids, order)
+        self.assertTrue(len(curr_pids) == 2)
+        self.assertTrue(curr_pids[0] == 'A')
+        self.assertTrue(curr_pids[1] == 'B')
+
+        dg = dg_with_marginalize()
+        order = 2
+        Tmrcas = dg.tmrca(['A','B'], order=order)
+        self.assertTrue(len(Tmrcas) == 6)
+
+    def test_frozen(self):
+        order = 2
+        Ne = 100
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=.1, frozen=True)
+        G.add_node('B', nu=1, T=.1, frozen=True)
+        G.add_edges_from([('root','A'),('root','B')])
+        dg = demography.DemoGraph(G, Ne=Ne)
+
+        gens = 10
+        Ns = [[Ne] * gens]
+        Tmrcas_init = demography.tmrcas.steady_state_tmrca(dg, Ne, order)
+        Tmrcas = demography.tmrcas.evolve_t(Tmrcas_init, order, Ns, [[1]], [True])
+        self.assertTrue(Tmrcas[1] == Tmrcas_init[1]+gens)
+        self.assertTrue(np.isclose(Tmrcas[0]-Tmrcas[1]**2,
+                                   Tmrcas_init[0]-Tmrcas_init[1]**2))
+
+        Tmrcas = dg.tmrca(['A','B'], order=order)
+        self.assertTrue(np.isclose(Tmrcas[0], Tmrcas[1]))
+        self.assertTrue(np.isclose(Tmrcas[0], Tmrcas[2]))
+        self.assertTrue(np.isclose(Tmrcas[3], Tmrcas[4]))
+        self.assertTrue(np.isclose(Tmrcas[3], Tmrcas[5]))
+        
+        order = 2
+        G = nx.DiGraph()
+        Ne = 100
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=.1, frozen=True)
+        G.add_node('B', nu=1, T=.1)
+        G.add_edges_from([('root','A'),('root','B')])
+        dg = demography.DemoGraph(G, Ne=100)
+        Tmrcas = dg.tmrca(['A','B'], order=order)
+        self.assertTrue(np.isclose(Tmrcas[0], Tmrcas[1]))
+        self.assertTrue(np.isclose(Tmrcas[0], Tmrcas[2]+8400))
+        self.assertTrue(np.isclose(Tmrcas[3], Tmrcas[4]))
+        self.assertTrue(np.isclose(Tmrcas[3], Tmrcas[5]+20))
+
+        order = 2
+        G = nx.DiGraph()
+        Ne = 100
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=2, T=.1, frozen=True)
+        G.add_node('B', nu=2, T=.1)
+        G.add_edges_from([('root','A'),('root','B')])
+        dg = demography.DemoGraph(G, Ne=100)
+        Tmrcas = dg.tmrca(['A','B'], order=order)
+        self.assertTrue(np.isclose(Tmrcas[3], 2*Ne*(1+dg.G.nodes['A']['T'])))
+        self.assertTrue(np.isclose(Tmrcas[4], 2*Ne*(1+dg.G.nodes['A']['T'])))
+        self.assertTrue(Tmrcas[5] > 2*Ne)
+
+    def test_result_against_H(self):
+        dg = ooa()
+        H = dg.LD(['YRI','CEU','CHB'])
+        Tmrcas = dg.tmrca(['YRI','CEU','CHB'], order=1)
+        self.assertTrue(np.allclose(H[-1] * 2 * dg.Ne / Tmrcas, 1., rtol=0.0001))
+
+        dg = dg_with_marginalize()
+        H = dg.LD(['A','B'])
+        Tmrcas = dg.tmrca(['A','B'], order=1)
+        self.assertTrue(np.allclose(H[-1] * 2 * dg.Ne / Tmrcas, 1., rtol=0.0001))
+
+        dg = dg_with_pulse()
+        H = dg.LD(['A','B'])
+        Tmrcas = dg.tmrca(['A','B'], order=1)
+        self.assertTrue(np.allclose(H[-1] * 2 * dg.Ne / Tmrcas, 1., rtol=0.0001))
+
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestTmrcaFunctions)
 

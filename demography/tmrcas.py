@@ -21,10 +21,8 @@ def compute_tmrcas(dg, pop_ids, Ne, order, selfing):
         selfing = 0.0
     
     if any_selfing:
-        T = steady_state_tmrca_selfing(dg, Ne, order, selfing)
         T = integrate_tmrca_selfing(dg, Ne, order, selfing, pop_ids)
     else:
-        T = steady_state_tmrca(dg, Ne, order)
         T = integrate_tmrca(dg, Ne, order, pop_ids)
     
     return T
@@ -96,15 +94,22 @@ def get_pop_sizes(Ne, nus, T_elapsed, T, current_gen, integ_time):
 
 
 def tmrca_vector(order, num_pops):
+    """
+    [T_{1,1}^n, T_{1,2}^n, ..., T_{p,p}^n, T_{1,1}^{n-1}, 
+        T_{1,2}^{n-2}, ..., T_{p,p}^{n-1}, ... T_{p,p}]
+    """
     tmrcas = []
     pairs = list(combinations_with_replacement(range(num_pops), 2))
-    for pair in pairs:
-        for i in range(1, order+1)[::-1]:
+    for i in range(1, order+1)[::-1]: # from largest to smallest order
+        for pair in pairs:
             tmrcas.append(f'T{i}_{pair[0]}_{pair[1]}')
     return tmrcas
 
 
 def integrate_tmrca(dg, Ne, order, pop_ids):
+    """
+    Block upper diagonal transition matrix for one generation
+    """
     # get events
     (present_pops, integration_times, nus, migration_matrices, frozen_pops,
         selfing_rates, events) = integration.get_moments_arguments(dg)
@@ -141,7 +146,8 @@ def integrate_tmrca(dg, Ne, order, pop_ids):
                                                    current_pop_ids,
                                                    present_pops[ii+1], order)
     
-    Tmrcas, current_pop_ids = marginalize_nonpresent(Tmrcas, current_pop_ids)
+    Tmrcas, current_pop_ids = marginalize_nonpresent(Tmrcas, pop_ids,
+                                                     current_pop_ids, order)
     
     Tmrcas, current_pop_ids = reorder_pops(Tmrcas, order, current_pop_ids,
                                            pop_ids)
@@ -152,15 +158,18 @@ def steady_state_tmrca(dg, Ne, order):
     """
     Get the steady state T = -inv(P).dot(ones)
     """
-    P = transition(order, [Ne], [[1]])
+    P = transition(order, [Ne], [[1]], [False])
     return np.linalg.inv(np.eye(order) - P).dot(np.ones(order))
 
 
-def transition(order, N, m):
+def transition(order, N, m, frozen):
     """
     Moment vector has order (T_{1,1}^n, T_{1,1}^{n-1}, ..., T_{1,2}^n, ...)
     """
     num_pops = len(N)
+    for i,freeze in enumerate(frozen):
+        if freeze is True:
+            N[i] = np.inf
     tmrcas = tmrca_vector(order, num_pops)
     pairs = list(combinations_with_replacement(range(num_pops), 2))
     P = np.zeros((order*len(pairs), order*len(pairs)))
@@ -210,21 +219,22 @@ def evolve_t(Tmrcas, order, Ns, mig_mat, frozen):
         for i in range(len(Ns[0])):
             current_Ns = [Ns[j][i] for j in range(len(Ns))]
             if not np.all(current_Ns == last_Ns): 
-                P = transition(order, current_Ns, mig_mat)
+                P = transition(order, current_Ns, mig_mat, frozen)
             Tmrcas = P.dot(Tmrcas) + 1
         return Tmrcas
 
 
 def set_prob_nomig(M, frozen):
     for ii in range(len(M)):
+        if frozen[ii] == True:
+            for jj in range(len(M)):
+                M[ii][jj] = 0
+                M[ii][ii] = 1
         if np.sum(M[ii]) != 1.:
             if M[ii][ii] != 0.:
                 raise("ValueError", "Migration matrix issues")
             else:
                 M[ii][ii] = 1 - np.sum(M[ii])
-        if frozen[ii] == True:
-            for jj in range(len(M)):
-                M[ii][jj] = 0
     return M
 
 
@@ -245,6 +255,12 @@ def apply_events(Tmrcas, events, current_pop_ids, next_pop_ids, order):
         if event[0] == 'pass':
             Tmrcas, current_pop_ids = pass_pop(Tmrcas, event[1], event[2],
                                                current_pop_ids)
+        if event[0] == 'marginalize':
+            Tmrcas, current_pop_ids = marginalize(Tmrcas, event[1],
+                                                  current_pop_ids, order)
+        if event[0] == 'pulse':
+            Tmrcas, current_pop_ids = pulse_migrate(Tmrcas, event[1], event[2],
+                                               event[3], current_pop_ids, order)
     assert len(current_pop_ids) == len(next_pop_ids)
     assert np.all([pid in next_pop_ids for pid in current_pop_ids])
     Tmrcas, current_pop_ids = reorder_pops(Tmrcas, order, current_pop_ids,
@@ -295,9 +311,66 @@ def pass_pop(Tmrcas, pop_from, pop_to, pop_ids):
     pop_ids[pop_ids.index(pop_from)] = pop_to
     return Tmrcas, pop_ids
 
-def marginalize_nonpresent(Tmrcas, current_pop_ids):
-    ## fill this in
+
+def marginalize(Tmrcas, pop_out, pop_ids, order):
+    old_names = tmrca_vector(order, len(pop_ids))
+    out_idx = pop_ids.index(pop_out)
+    marg_Tmrcas = []
+    for ii,mom in enumerate(old_names):
+        p1 = int(mom.split('_')[1])
+        p2 = int(mom.split('_')[2])
+        if p1 != out_idx and p2 != out_idx:
+            marg_Tmrcas.append(Tmrcas[ii])
+    marg_Tmrcas = np.array(marg_Tmrcas)
+    pop_ids.pop(pop_ids.index(pop_out))
+    return marg_Tmrcas, pop_ids
+
+
+def marginalize_nonpresent(Tmrcas, pop_ids, current_pop_ids, order):
+    for pop in current_pop_ids:
+        if pop not in pop_ids:
+            Tmrcas, current_pop_ids = marginalize(Tmrcas, pop_out,
+                                                  current_pop_ids, order)
     return Tmrcas, current_pop_ids
+
+
+def pulse_migrate(Tmrcas, pop_from, pop_to, f, current_pop_ids, order):
+    num_pops = len(current_pop_ids)
+    idx_from = current_pop_ids.index(pop_from)
+    idx_to = current_pop_ids.index(pop_to)
+    Pulse = pulse_matrix(num_pops, order, idx_from, idx_to, f)
+    Tmrcas = Pulse.dot(Tmrcas)
+    return Tmrcas, current_pop_ids
+
+
+def pulse_matrix(num_pops, order, idx_from, idx_to, f):
+    names = tmrca_vector(order, num_pops)
+    P = np.zeros((len(names), len(names)))
+    for i, mom in enumerate(names):
+        x = mom.split('_')[0]
+        p1 = int(mom.split('_')[1])
+        p2 = int(mom.split('_')[2])
+        if p1 == p2 == idx_to:
+            mom_from = rename_moment('_'.join([x, str(idx_from), str(idx_from)]))
+            P[i, names.index(mom_from)] = f**2
+            mom_from = rename_moment('_'.join([x, str(idx_to), str(idx_from)]))
+            P[i, names.index(mom_from)] = 2*f*(1-f)
+            P[i, names.index(mom)] = (1-f)**2
+        elif (p1 == idx_to and p2 == idx_from) or (p2 == idx_to and p1 == idx_from):
+            mom_from = rename_moment('_'.join([x, str(idx_from), str(idx_from)]))
+            P[i, names.index(mom_from)] = f
+            P[i, names.index(mom)] = (1-f)
+        elif p1 == idx_to:
+            mom_from = rename_moment('_'.join([x, str(idx_from), str(p2)]))
+            P[i, names.index(mom_from)] = f
+            P[i, names.index(mom)] = (1-f)
+        elif p2 == idx_to:
+            mom_from = rename_moment('_'.join([x, str(idx_from), str(p1)]))
+            P[i, names.index(mom_from)] = f
+            P[i, names.index(mom)] = (1-f)
+        else:
+            P[i, i] = 1
+    return P
 
 
 ###

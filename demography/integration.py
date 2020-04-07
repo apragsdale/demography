@@ -364,7 +364,8 @@ def augment_with_frozen(dg, sampled_pops):
                 mapping = {pop: pop_pre}
                 G = nx.relabel_nodes(G, mapping)
                 # add frozen population
-                G.add_node(pop, nu=1, T=time_left, frozen=True)
+                G.add_node(pop, nu=G.nodes[pop_pre]['nu'], T=time_left,
+                           frozen=True)
                 # add edge between ancient and frozen population
                 G.add_edge(pop_pre, pop)
         # create dg object and add relevant attributes that were present on dg

@@ -142,6 +142,17 @@ class TestGraphStructure(unittest.TestCase):
         dg = example_three_split()
         self.assertTrue(len(dg.successors['root']) == 3)
 
+    def test_frozen_migration_raises_error(self):
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=0.2, m={'B':1})
+        G.add_node('B', nu=1, T=0.2, frozen=True)
+        self.assertRaises(InvalidGraph, demography.DemoGraph, G)
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=0.2)
+        G.add_node('B', nu=1, T=0.2, m={'A':1}, frozen=True)
+        self.assertRaises(InvalidGraph, demography.DemoGraph, G)
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestGraphStructure)
 
