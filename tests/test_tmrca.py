@@ -347,6 +347,81 @@ class TestTmrcaFunctions(unittest.TestCase):
         Tmrcas = dg.tmrca(['A','B'], order=1)
         self.assertTrue(np.allclose(H[-1] * 2 * dg.Ne / Tmrcas, 1., rtol=0.0001))
 
+    def test_tmrca_vector_selfing(self):
+        order = 3
+        num_pops = 4
+        names = demography.tmrcas.tmrca_vector_selfing(order, num_pops)
+        self.assertTrue(len(names) == order * (num_pops + num_pops * (num_pops+1)//2))
+
+    def test_add_selfing_rates(self):
+        dg = dg_without_selfing()
+        pself = 0.1
+        dg_self = demography.tmrcas.add_selfing_rates(dg, pself)
+        for node in dg.G.nodes:
+            self.assertTrue(dg_self.G.nodes[node]['selfing'] == pself)
+
+    def test_equilibrium_selfing(self):
+        Ne = 1000
+        pself = 1./Ne
+        order = 1
+        P = demography.tmrcas.transition_selfing(1, [Ne], [[1]], [False], [pself])
+        ss = np.linalg.inv(np.eye(2*order) - P).dot(np.ones(2*order))
+        
+        dg = dg_without_selfing()
+        ss_noself = demography.tmrcas.steady_state_tmrca(dg, Ne, order)
+        
+        self.assertTrue(np.allclose(ss, ss_noself))
+
+        pself = 0.0
+        P = demography.tmrcas.transition_selfing(1, [Ne], [[1]], [False], [pself])
+        ss = np.linalg.inv(np.eye(2*order) - P).dot(np.ones(2*order))
+        self.assertTrue(np.allclose(ss[0], ss[1] + 1))
+        
+        pself = 1.0
+        P = demography.tmrcas.transition_selfing(1, [Ne], [[1]], [False], [pself])
+        ss = np.linalg.inv(np.eye(2*order) - P).dot(np.ones(2*order))
+        self.assertTrue(np.isclose(ss[0], 2))
+        self.assertTrue(np.isclose(ss[1], Ne+1))
+
+        # two pops
+        N = [Ne, Ne]
+        order = 1
+        p_self = 1./Ne
+        m = 1./2/Ne
+        P = demography.tmrcas.transition_selfing(1, N, [[1-m, m],[m, 1-m]], 
+                                                 [False, False], [p_self, p_self])
+        ss = np.linalg.inv(np.eye(len(P))-P).dot(np.ones(len(P)))
+        
+        P_rand = demography.tmrcas.transition(1, N, [[1-m, m],[m, 1-m]], 
+                                              [False, False])
+        ss_rand = np.linalg.inv(np.eye(len(P_rand))-P_rand).dot(np.ones(len(P_rand)))
+
+    def test_integration_get_selfing_rates(self):
+        Ne = 1000
+        pself = 0.0
+        dg = dg_without_selfing()
+        dg_self = demography.tmrcas.add_selfing_rates(dg, pself)
+        selfing = demography.integration.get_selfing_rates(dg_self.G, ['A','B'])
+        self.assertTrue(selfing[0] == pself)
+        self.assertTrue(selfing[1] == pself)
+
+    def test_integrate_with_default_selfing(self):
+        dg = dg_without_selfing()
+        order = 1
+        Ne = 1000
+        pop_ids = ['A','B']
+        pself = 1./Ne
+        Ts = demography.tmrcas.integrate_tmrca_selfing(dg, Ne, order, pop_ids, pself)
+        self.assertTrue(np.isclose(Ts[0], Ts[2]))
+        self.assertTrue(np.isclose(Ts[1], Ts[4]))
+        
+        pself = 1.0
+        Ts = demography.tmrcas.integrate_tmrca_selfing(dg, Ne, order, pop_ids, pself)
+        self.assertTrue(np.isclose(Ts[0], Ts[1]))
+        self.assertTrue(np.isclose(Ts[0], 2.0))
+        self.assertTrue(np.isclose(Ts[2], Ts[4]))
+        self.assertTrue(np.isclose(Ts[2], 1001))
+
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestTmrcaFunctions)
 

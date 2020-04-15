@@ -139,10 +139,7 @@ def get_selfing_rates(G, new_pops):
             selfing.append(G.nodes[pop]['selfing'])
         else:
             selfing.append(0)
-    if set(selfing) == {0}:
-        return None
-    else:
-        return selfing
+    return selfing
 
 
 def reorder_events(new_events):
