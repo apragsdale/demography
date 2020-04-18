@@ -5,6 +5,9 @@ from itertools import combinations_with_replacement
 from scipy.special import gammaln
 
 
+### to do -- augment with frozen pops to be able to integrate with ancient samples
+
+
 def compute_tmrcas(dg, pop_ids, Ne, order, selfing):
     """
     selfing is the default selfing rate. If None, it is ignored. It does not
@@ -442,7 +445,7 @@ def add_selfing_rates(dg, pself):
 
 def integrate_tmrca_selfing(dg, Ne, order, pop_ids, pself):
     """
-    Block upper diagonal transition matrix for one generation
+    pself: default selfing rate, added to populations if selfing rate isn't set
     """
     # add default selfing rate to dg, if none are given for a given population
     dg_self = add_selfing_rates(dg, pself)
@@ -454,7 +457,9 @@ def integrate_tmrca_selfing(dg, Ne, order, pop_ids, pself):
     current_pop_ids = present_pops[0]
     
     # initial steady state
-    Tmrcas = steady_state_tmrca_selfing(dg_self, Ne, order, pself)
+    
+    Tmrcas = steady_state_tmrca_selfing(dg_self, Ne, order,
+                                        dg_self.G.nodes['root']['selfing'])
     
     T_elapsed = 0
     current_gen = 0
@@ -464,7 +469,7 @@ def integrate_tmrca_selfing(dg, Ne, order, pop_ids, pself):
     for ii, (pops, T, nu, mig_mat, frozen, selfing) in enumerate(zip(
                 present_pops, integration_times, nus, migration_matrices,
                 frozen_pops, selfing_rates)):
-
+        
         # get total elapsed T, evolve while less than 2*Ne*T generations and
         # get list of Nes for each of these generations, or a single set
         # of Nes if all pop sizes are constant
@@ -523,13 +528,13 @@ def transition_selfing(order, N, m, frozen, pself):
             this_idx = tmrcas.index(f'W{n}_{ii}_{ii}')
             f = pself[ii]
             for jj in range(num_pops):
-                m_ij = m[this_idx][jj]
+                m_ij = m[ii][jj]
                 for kappa in range(1, n+1):
                     mom_from = f'W{kappa}_{jj}_{jj}'
                     P[this_idx, tmrcas.index(mom_from)] += f/2. * m_ij * _choose(n, kappa)
             for (jj,kk) in pairs:
-                    m_ij = m[this_idx][jj]
-                    m_ik = m[this_idx][kk]
+                    m_ij = m[ii][jj]
+                    m_ik = m[ii][kk]
                     fac = 1+(jj!=kk)
                     for kappa in range(1, n+1):
                         mom_from = f'T{kappa}_{jj}_{kk}'

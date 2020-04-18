@@ -75,6 +75,19 @@ def dg_with_pulse():
     return demography.DemoGraph(G, Ne=Ne)
 
 
+def two_epoch(params, selfing=None, Ne=1000):
+    [nu, T] = params
+    G = nx.DiGraph()
+    if selfing is None:
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=nu, T=T)
+    else:
+        G.add_node('root', nu=1, T=0, selfing=selfing)
+        G.add_node('A', nu=nu, T=T, selfing=selfing)
+    G.add_edge('root','A')
+    dg = demography.DemoGraph(G, Ne=Ne)
+    return dg
+
 class TestTmrcaFunctions(unittest.TestCase):
     """
     Tests parsing the DemoGraph object to pass to moments.LD
@@ -421,6 +434,42 @@ class TestTmrcaFunctions(unittest.TestCase):
         self.assertTrue(np.isclose(Ts[0], 2.0))
         self.assertTrue(np.isclose(Ts[2], Ts[4]))
         self.assertTrue(np.isclose(Ts[2], 1001))
+
+
+    def test_nonequilibrium_random_selfing(self):
+        params = [1, 0.5]
+        Ne = 100
+        dg = two_epoch(params, Ne=Ne)
+        dg_self = two_epoch(params, Ne=Ne, selfing=1./Ne)
+        T = dg.tmrca(['A'])
+        T_self = dg_self.tmrca(['A'])
+        self.assertTrue(np.isclose(T[0], T_self[0]))
+        self.assertTrue(np.isclose(T[0], T_self[1]))
+        self.assertTrue(np.isclose(T[1], T_self[2]))
+        self.assertTrue(np.isclose(T[1], T_self[3]))
+
+        params = [.1, .2]
+        dg = two_epoch(params, Ne=Ne)
+        dg_self = two_epoch(params, Ne=Ne, selfing=1./Ne)
+        # to compare to random mating
+        dg_self.G.nodes['A']['selfing'] = 1./Ne/params[0]
+        T = dg.tmrca(['A'])
+        T_self = dg_self.tmrca(['A'])
+        self.assertTrue(np.isclose(T[0], T_self[0]))
+        self.assertTrue(np.isclose(T[0], T_self[1]))
+        self.assertTrue(np.isclose(T[1], T_self[2]))
+        self.assertTrue(np.isclose(T[1], T_self[3]))
+
+        params = [7.6, .145]
+        dg = two_epoch(params, Ne=Ne)
+        dg_self = two_epoch(params, Ne=Ne, selfing=1./Ne)
+        dg_self.G.nodes['A']['selfing'] = 1./Ne/params[0]
+        T = dg.tmrca(['A'])
+        T_self = dg_self.tmrca(['A'])
+        self.assertTrue(np.isclose(T[0], T_self[0]))
+        self.assertTrue(np.isclose(T[0], T_self[1]))
+        self.assertTrue(np.isclose(T[1], T_self[2]))
+        self.assertTrue(np.isclose(T[1], T_self[3]))
 
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestTmrcaFunctions)
