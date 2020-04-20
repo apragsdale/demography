@@ -14,6 +14,7 @@ try:
 except ImportError:
     msprime_installed = 0
 
+import sys
 import math
 import networkx as nx
 import numpy as np
@@ -225,11 +226,12 @@ def get_samples(dg, pop_ids, sample_sizes):
 
 
 def graph_from_msprime(demographic_events, migration_matrix,
-                       population_configurations, populations=None):
+                       population_configurations, populations=None, dot=False):
     """
     Construct a DemoGraph from msprime `demographic_events` and
     `population_configurations`. An optional list of population names may
     be provided in `populations`, in the same order as population_configurations.
+    If `dot` is True, print a dot graph for visualisation with graphviz.
     """
 
     if populations is None:
@@ -252,12 +254,11 @@ def graph_from_msprime(demographic_events, migration_matrix,
         if len(m_dict) > 0:
             attr.update(m=m_dict)
 
-        G.add_node(populations[j], **attr)
+        if dot:
+            # distinguish labelled nodes in graphviz diagrams
+            attr.update(color="red", shape="rect")
 
-        """
-        # distinguish leaf nodes in graphviz diagrams
-        attr.update(color="red", shape="rect")
-        """
+        G.add_node(populations[j], **attr)
 
     def get_parent(G, x):
         edges = G.in_edges(x)
@@ -415,8 +416,14 @@ def graph_from_msprime(demographic_events, migration_matrix,
     assert nx.is_tree(G)
 
     root = next(nx.topological_sort(G))
-    G = nx.relabel_nodes(G, {root: "root"})
-    root = "root"
+    '''
+    # rename the root node to "root"
+    if root != "root":
+        assert "root" not in populations, \
+                "Population labelled as 'root' is not the root of the tree."
+        G = nx.relabel_nodes(G, {root: "root"})
+        root = "root"
+    '''
 
     if G.nodes[root].get("start_size") is None:
         G.nodes[root].update(
@@ -459,20 +466,26 @@ def graph_from_msprime(demographic_events, migration_matrix,
             for source in m_dict.keys():
                 m_dict[source] *= 2 * Ne_ref
 
-        """
-        # make informative label for graphviz diagrams
-        label = node
-        #for k in ("start_time", "end_time", "start_size", "end_size"):
-        for k in ("T", "nu", "nu0", "nuF"):
-            if k in attr:
-                label += f"\n{k}={attr[k]:.3f}"
-        if "pulse" in attr:
-            for source, t, prop in attr["pulse"]:
-                label += f"\npulse[{source}]: t_frac={t:.3f}, m={prop:.3g}"
-        if "m" in attr:
-            for source, prop in attr["m"].items():
-                label += f"\nm[{source}]={prop:.3g}"
-        attr.update(label=label)
-        """
+        if dot:
+            # make informative label for graphviz diagrams
+            label = node
+            #for k in ("start_time", "end_time", "start_size", "end_size"):
+            for k in ("T", "nu", "nu0", "nuF"):
+                if k in attr:
+                    label += f"\n{k}={attr[k]:.3f}"
+            if "pulse" in attr:
+                for source, t, prop in attr["pulse"]:
+                    label += f"\npulse[{source}]: t_frac={t:.3f}, m={prop:.3g}"
+            if "m" in attr:
+                for source, prop in attr["m"].items():
+                    label += f"\nm[{source}]={prop:.3g}"
+            attr.update(label=label)
+
+    if dot:
+        # Put all labelled populations at the same 'rank'.
+        A = nx.nx_agraph.to_agraph(G)
+        A.add_subgraph(populations, rank="same")
+        # Output graphviz dot file.
+        A.write(sys.stdout)
 
     return demography.DemoGraph(G, Ne=Ne_ref)
