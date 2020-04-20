@@ -278,6 +278,8 @@ def graph_from_msprime(demographic_events, migration_matrix,
         attr = G.nodes[x]
         end_time = attr["end_time"]
         end_size = attr["end_size"]
+        assert end_time is not None, f"{x}: {attr}"
+        assert end_size is not None, f"{x}: {attr}"
         growth_rate = attr.get("growth_rate")
         if growth_rate is not None:
             start_size = end_size * math.exp(growth_rate * (end_time - time))
@@ -321,20 +323,25 @@ def graph_from_msprime(demographic_events, migration_matrix,
 
         elif isinstance(event, msprime.PopulationParametersChange):
             pop = top_of_lineage(G, populations[event.population])
+            pop_start_size = start_size(G, pop, event.time)
+            if event.initial_size is not None:
+                end_size = event.initial_size
+            else:
+                end_size = pop_start_size
             t_pop = G.nodes[pop].get("end_time")
             if t_pop < event.time:
                 G.nodes[pop].update(
                     start_time=event.time,
-                    start_size=start_size(G, pop, event.time))
+                    start_size=pop_start_size)
                 new = pop + "/^"
                 G.add_node(
                         new, end_time=event.time,
-                        end_size=event.initial_size,
+                        end_size=end_size,
                         growth_rate=event.growth_rate)
                 G.add_edge(new, pop)
             else:
                 G.nodes[pop].update(
-                        end_size=event.initial_size,
+                        end_size=end_size,
                         growth_rate=event.growth_rate)
 
         elif isinstance(event, msprime.MigrationRateChange):
@@ -429,7 +436,7 @@ def graph_from_msprime(demographic_events, migration_matrix,
         assert start_time is not None, f"{node} has no start_time"
         assert end_time is not None, f"{node} has no end_time"
 
-        if end_size is None or math.isclose(start_size, end_size, rel_tol=1e-3):
+        if math.isclose(start_size, end_size, rel_tol=1e-3):
             attr.update(nu=start_size/Ne_ref)
         else:
             attr.update(nu0=start_size/Ne_ref, nuF=end_size/Ne_ref)
