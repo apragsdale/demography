@@ -466,11 +466,11 @@ def set_scale(dg, ax, Ne, gen, ylabel, rescaling):
     # hide the bottom, top, and right spines
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-    
-    ax.spines['bottom'].set_position(('outward', 10))
-    
+    ax.spines['bottom'].set_visible(False)
+    ax.tick_params(axis='x', which=u'both',length=0) 
     ax.spines['left'].set_position(('outward', 10))
-    ax.set_ylim(bottom=0)
+    ax.set_ylim(bottom=-2)
+    ax.spines['left'].set_bounds(0, ax.get_ylim()[1])
     ax.set_ylabel(ylabel)
 
 
