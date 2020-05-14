@@ -331,6 +331,8 @@ def get_moments_arguments(dg):
             # rearrange new events so that marginalize happens last
             events.append(reorder_events(new_events))
     
+    assert np.all([t >= 0 for t in integration_times]), "negative integration time -- probably some mistake in defining the demography"
+    
     return present_pops, integration_times, nus, migration_matrices, frozen_pops, selfing_rates, events
 
 

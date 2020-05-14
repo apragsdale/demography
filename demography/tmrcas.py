@@ -2,8 +2,9 @@ import numpy as np
 import copy
 from . import integration
 from itertools import combinations_with_replacement
-from scipy.special import gammaln
 
+from . import util
+_choose = util._choose
 
 ### to do -- augment with frozen pops to be able to integrate with ancient samples
 
@@ -41,10 +42,6 @@ def check_selfing(dg):
 ###
 ### functions for integrating TMRCAs
 ###
-
-
-def _choose(n, i):
-    return np.exp(gammaln(n+1)- gammaln(n-i+1) - gammaln(i+1))
 
 
 def gens_in_interval_as_t(Ne, T_elapsed, T, current_gen, integ_time):
@@ -289,9 +286,7 @@ def tmrca_vector(order, num_pops):
 
 def integrate_tmrca(dg, Ne, order, pop_ids):
     """
-    Block upper diagonal transition matrix for one generation
     """
-    # get events
     (present_pops, integration_times, nus, migration_matrices, frozen_pops,
         selfing_rates, events) = integration.get_moments_arguments(dg)
     

@@ -9,6 +9,7 @@ from . import msprime_functions
 from . import util
 from . import coalescence_rates
 from . import tmrcas
+from . import twolocus_tmrcas
 import tskit
 
 
@@ -314,7 +315,7 @@ class DemoGraph():
     Compute Tmrca's between populations, using a discrete recursion.
     """
     
-    def tmrca(self, pop_ids, Ne=None, order=2, selfing=None):
+    def tmrca(self, pop_ids, Ne=None, order=2, selfing=None, two_locus=False, r=None):
         """
         This function computes all (non-central?) moments of Tmrcas within
         and between populations in the demography.
@@ -331,6 +332,9 @@ class DemoGraph():
                  rest of the branches. In this case, if selfing is None, it
                  defaults to 0, so that selfing is disallowed if not specified
                  in some populations.
+        two_locus: if False (default), computes moments of the single locus Tmrca
+                   distribution. If True, order must be set to tuple of length two
+                   (order_x, order_y), and 
         """
         if Ne is None:
             Ne = self.Ne
@@ -341,8 +345,18 @@ class DemoGraph():
 
         assert np.all([pid in self.leaves for pid in pop_ids]), "pop_ids must be leaves of the demography"
 
+        # To do:
         # returns either a structured array or a dictionary with moments
         # also need to decide on the basis, central vs non-central moments, etc
-        ETn = tmrcas.compute_tmrcas(self, pop_ids, Ne, order, selfing)
+        if two_locus is False:
+            ETn = tmrcas.compute_tmrcas(self, pop_ids, Ne, order, selfing)
+        else:
+            if r is None:
+                print("recombingation rate `r` not specified - setting r = 0.")
+                r = 0
+            if selfing is not None:
+                print("only the random-mating model is implemented for two loci")
+            ETn = twolocus_tmrcas.compute_twolocus_tmrcas(self, pop_ids, Ne, order[0],
+                                                          order[1], r)
         
         return ETn

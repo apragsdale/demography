@@ -1,5 +1,6 @@
 import networkx as nx
-
+import numpy as np
+from scipy.special import gammaln
 
 ## exception raised if the input graph has an issue
 class InvalidGraph(Exception):
@@ -111,4 +112,8 @@ def get_one_parent(dg, child):
     else:
         parent = dg.predecessors[child]
     return parent
+
+
+def _choose(n, i):
+    return np.exp(gammaln(n+1)- gammaln(n-i+1) - gammaln(i+1))
 
