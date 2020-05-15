@@ -477,11 +477,26 @@ def set_scale(dg, ax, Ne, gen, ylabel, rescaling):
 def draw_migrations(ax, dg, pop_locations, intervals, rescaling):
     drawn_heights = []
     buffer = 0.02
+    # if symmetric migration, draw as double headed and only draw once
+    symmetric_drawn = []
     for pop in dg.G.nodes:
         if 'm' in dg.G.nodes[pop]:
             for pop_to in dg.G.nodes[pop]['m']:
                 rate = dg.G.nodes[pop]['m'][pop_to]
                 if rate > 0:
+                    # check if already drawn
+                    if (pop_to, pop) in symmetric_drawn:
+                        continue
+                    # check if it is symmetric, record and draw double headed
+                    symmetric = False
+                    arrow_style = '->'
+                    if 'm' in dg.G.nodes[pop_to]:
+                        if pop in dg.G.nodes[pop_to]['m']:
+                            if dg.G.nodes[pop_to]['m'][pop] == rate:
+                                symmetric = True
+                                symmetric_drawn.append( (pop, pop_to) )
+                                arrow_style = '<->'
+
                     ys_from = intervals[pop]
                     ys_to = intervals[pop_to]
                     ys = (max(ys_from[0], ys_to[0]), min(ys_from[1], ys_to[1]))
@@ -509,7 +524,7 @@ def draw_migrations(ax, dg, pop_locations, intervals, rescaling):
                         ax.annotate(
                             '', xy=(x_to, (1-y)*rescaling), xytext=(x_from, (1-y)*rescaling),
                             xycoords='data', textcoords='data',
-                            arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'lw': np.log(1+rate)})
+                            arrowprops={'arrowstyle': arrow_style, 'ls': 'dashed', 'lw': np.log(1+rate)})
                         drawn_heights.append(y)
                     if pop_locations[pop][0] > pop_locations[pop_to][1]:
                         # use left edge of pop from, right of pop_to
@@ -520,7 +535,7 @@ def draw_migrations(ax, dg, pop_locations, intervals, rescaling):
                         ax.annotate(
                             '', xy=(x_to, (1-y)*rescaling), xytext=(x_from, (1-y)*rescaling),
                             xycoords='data', textcoords='data',
-                            arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'lw': np.log(1+rate)})
+                            arrowprops={'arrowstyle': arrow_style, 'ls': 'dashed', 'lw': np.log(1+rate)})
                         drawn_heights.append(y)
 
 
