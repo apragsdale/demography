@@ -250,7 +250,7 @@ def graph_from_ddb_graph(dict_graph, node_attrs, node_labels, dot=False):
     for node, node_attr in node_attrs.items():
         epoch_j, pop_k = node
         name = node_labels[pop_k]
-        if epoch_name_suffix:
+        if epoch_name_suffix and epoch_j > 0:
             name += f"/{epoch_j}"
 
         # Save the node identifier from the msprime.DemographyDebugger
@@ -276,7 +276,7 @@ def graph_from_ddb_graph(dict_graph, node_attrs, node_labels, dot=False):
             pulse = set()
             for ((epoch_j, pop_k), time), proportion in pulse_out.items():
                 source = node_labels[pop_k]
-                if epoch_name_suffix:
+                if epoch_name_suffix and epoch_j > 0:
                     source += f"/{epoch_j}"
                 t_frac = (end_time - time) / (end_time - start_time)
                 pulse.add((source, t_frac, proportion))
@@ -308,12 +308,15 @@ def graph_from_ddb_graph(dict_graph, node_attrs, node_labels, dot=False):
                     if source_node is None:
                         raise ValueError(f"No source for node {node}.")
                     source = node_labels[pop_i]
-                    if epoch_name_suffix:
+                    if epoch_name_suffix and source_node[0] > 0:
                         source += f"/{source_node[0]}"
                     m_dict[source] = m * 2 * Ne_ref
             dg_attr.update(m=m_dict)
 
-        T = (end_time - start_time) / (2 * Ne_ref)
+        if node == root:
+            T = 0
+        else:
+            T = (end_time - start_time) / (2 * Ne_ref)
         dg_attr.update(T=T)
 
         # Make informative label for graphviz diagrams.
