@@ -19,6 +19,7 @@ def simple_model():
 
 
 class TestStdpopsimModels(unittest.TestCase):
+    '''
     """
     Check that we can convert stdpopsim models to graphs and back again.
     """
@@ -45,12 +46,14 @@ class TestStdpopsimModels(unittest.TestCase):
             except stdpopsim.UnequalModelsError:
                 print(f"{model.id}")
                 raise
-
+    '''
 
     def test_conversions_simple(self):
         dg = simple_model()
         pc, mm, de = dg.msprime_inputs()
-        dg2 = graph_from_msprime(de, mm, pc, ['root','A','pop1','pop2','pop3'])
+        dg2 = graph_from_msprime(
+                de, mm, pc, ['root','A','pop1','pop2','pop3'],
+                leaves=['pop1', 'pop2', 'pop3'], dot=True)
         # ensure we recover the same nodes
         for node in dg.G.nodes():
             self.assertTrue(node in dg2.G.nodes())
