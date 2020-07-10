@@ -433,8 +433,6 @@ def plot_demography(dg, fignum=1, leaf_order=None, labels=None, ax=None,
     xticklabels = []
     for leaf in leaf_order:
         center = np.mean(pop_locations[leaf][:2])
-        #bottom = 1-intervals[leaf][1]
-        #ax.text(center, (bottom-0.1)*rescaling, label, ha='center', va='center')
         xticks.append(center)
 
     ax.set_xticks(xticks)
@@ -469,7 +467,6 @@ def set_scale(dg, ax, Ne, gen, ylabel, rescaling):
     ax.spines['bottom'].set_visible(False)
     ax.tick_params(axis='x', which=u'both',length=0) 
     ax.spines['left'].set_position(('outward', 10))
-    ax.set_ylim(bottom=-2)
     ax.spines['left'].set_bounds(0, ax.get_ylim()[1])
     ax.set_ylabel(ylabel)
 
@@ -771,7 +768,7 @@ def get_pop_corners(node, bottom_center, dg, pop_locations, intervals, flipped):
 def get_xs(node, dg, pop_locations, intervals):
     [bottom_left, bottom_right, top_left, top_right] = pop_locations[node]
     y0, yF = intervals[node]
-    y = np.linspace(y0, yF, 21)
+    y = np.linspace(y0, yF, 51)
     if bottom_left == top_left:
         x_l = np.ones(len(y)) * bottom_left
     else:
