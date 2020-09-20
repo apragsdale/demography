@@ -364,7 +364,11 @@ def augment_with_frozen(dg, sampled_pops):
                 mapping = {pop: pop_pre}
                 G = nx.relabel_nodes(G, mapping)
                 # add frozen population
-                G.add_node(pop, nu=G.nodes[pop_pre]['nu'], T=time_left,
+                if 'nu' in G.nodes[pop_pre]:
+                    nu_frozen = nu=G.nodes[pop_pre]['nu']
+                else:
+                    nu_frozen = nu=G.nodes[pop_pre]['nuF']
+                G.add_node(pop, nu=nu_frozen, T=time_left,
                            frozen=True)
                 # add edge between ancient and frozen population
                 G.add_edge(pop_pre, pop)
@@ -375,10 +379,12 @@ def augment_with_frozen(dg, sampled_pops):
                             if pop_to == pop:
                                 G.nodes()[node]['m'][pop_pre] = G.nodes()[node]['m'][pop_to]
                                 G.nodes()[node]['m'].pop(pop_to)
-                    if 'pulse' in node:
-                        for ii, pulse_event in enumerate(G.nodes()[node]['pulse']):
+                    if 'pulse' in G.nodes()[node]:
+                        for pulse_event in G.nodes()[node]['pulse']:
                             if pulse_event[0] == pop:
-                                G.nodes()[node]['pulse'][ii][0] = pop_pre
+                                new_pulse_event = (pop_pre, pulse_event[1], pulse_event[2])
+                                G.nodes()[node]['pulse'].remove(pulse_event)
+                                G.nodes()[node]['pulse'].add(new_pulse_event)
         # create dg object and add relevant attributes that were present on dg
         dg_out = demography.DemoGraph(G, Ne=dg.Ne, mutation_rate=dg.mutation_rate)
         return dg_out
