@@ -154,6 +154,27 @@ class TestGraphStructure(unittest.TestCase):
         G.add_node('B', nu=1, T=0.2, m={'A':1}, frozen=True)
         self.assertRaises(InvalidGraph, demography.DemoGraph, G)
 
+    def test_augment_frozen_migrations(self):
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=1, m={'B': 1})
+        G.add_node('B', nu=1, T=0.5, m={'A': 1})
+        G.add_edge('root', 'A')
+        G.add_edge('root', 'B')
+        dg = demography.DemoGraph(G)
+        dg_aug = demography.integration.augment_with_frozen(dg, ['A', 'B'])
+        
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=1, pulse={('B', .25, .5)})
+        G.add_node('B', nu=1, T=0.5, pulse={('A', .75, .5)})
+        G.add_edge('root', 'A')
+        G.add_edge('root', 'B')
+        dg = demography.DemoGraph(G)
+        dg_aug = demography.integration.augment_with_frozen(dg, ['A', 'B'])
+
+        ## test validity here...
+        
 suite = unittest.TestLoader().loadTestsFromTestCase(TestGraphStructure)
 
 if __name__ == '__main__':
