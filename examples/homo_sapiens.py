@@ -330,3 +330,87 @@ def kamm_model(Ne=18200):
 
     dg = demography.DemoGraph(G, Ne=Ne)
     return dg
+
+
+
+"""
+Five population model in Jouganous et al (2017), that includes YRI, CEU, CHB,
+KHV, and JPT from the Thousand Genomes Project.
+"""
+
+
+def jouganous_five_pop(Ne = 11293):
+    NAf = 23721
+    NB = 2831
+    NEu0 = 2512
+    rEu = 0.0016
+    NAs0 = 1019
+    rAs = 0.0026
+    NKhv0 = 2356
+    rKhv = 0.01 ## error in Table? This is not the value give
+    NJpt0 = 4384
+    rJpt = 0.01 ## error?
+    mAfB = 16.8e-5
+    mAfEu = 1.14e-5
+    mAfAs = 0.56e-5
+    mEuAs = 4.75e-5
+    mChKh = 21.3e-5
+    mChJp = 3.3e-5
+    TA = 357e3
+    TB = 119e3
+    TEuAs = 46e3
+    TChKh = 9.8e3
+    TChJp = 9e3
+    
+    gens = 29
+    
+    nuAf = NAf/Ne
+    nuB = NB/Ne
+    nuEu0 = NEu0/Ne
+    nuAs0 = NAs0/Ne
+    nuEu0 = NEu0/Ne
+    nuKhv0 = NKhv0/Ne
+    nuJpt0 = NJpt0/Ne
+
+    nuEuF = nuEu0 * np.exp(rEu * (TEuAs)/gens)
+    nuAsF = nuAs0 * np.exp(rAs * (TEuAs)/gens)
+    nuAs1 = nuAs0 * np.exp(rAs * (TEuAs-TChKh)/gens)
+    nuAs2 = nuAs0 * np.exp(rAs * (TEuAs-TChJp)/gens)
+    nuKhvF = nuKhv0 * np.exp(rKhv * (TChKh)/gens)
+    nuJptF = nuJpt0 * np.exp(rJpt * (TChJp)/gens)
+    
+    
+    G = nx.DiGraph()
+    
+    G.add_node('root', nu=1, T=0)
+    G.add_node('A', nu=nuAf, T=(TA-TB)/2/Ne/gens)
+    G.add_node('B', nu=nuB, T=(TB-TEuAs)/2/Ne/gens, m={'YRI':mAfB})
+    G.add_node('YRI', nu=nuAf, T=TB/2/Ne/gens,
+        m={'B':mAfB, 'CEU':mAfEu, 'CHB0':mAfAs, 'CHB1':mAfAs, 'CHB':mAfAs})
+    G.add_node('CEU', nu0=nuEu0, nuF=nuEuF, T=TEuAs/2/Ne/gens,
+        m={'YRI':mAfAs, 'CHB0':mEuAs, 'CHB1':mEuAs, 'CHB':mEuAs})
+    G.add_node('CHB0', nu0=nuAs0, nuF=nuAs1, T=(TEuAs-TChKh)/2/Ne/gens,
+        m={'YRI':mAfAs, 'CEU':mEuAs})
+    G.add_node('CHB1', nu0=nuAs1, nuF=nuAs2, T=(TChKh-TChJp)/2/Ne/gens,
+        m={'YRI':mAfAs, 'CEU':mEuAs, 'KHV':mChKh})
+    G.add_node('CHB', nu0=nuAs2, nuF=nuAsF, T=TChJp/2/Ne/gens,
+        m={'YRI':mAfAs, 'CEU':mEuAs, 'KHV':mChKh, 'JPT':mChJp})
+    G.add_node('KHV', nu0=nuKhv0, nuF=nuKhvF, T=TChKh/2/Ne/gens,
+        m={'CHB1':mChKh, 'CHB':mChKh})
+    G.add_node('JPT', nu0=nuJpt0, nuF=nuJptF, T=TChJp/2/Ne/gens,
+        m={'CHB':mChJp})
+
+    G.add_edges_from([
+        ('root','A'),
+        ('A','YRI'),
+        ('A','B'),
+        ('B','CEU'),
+        ('B','CHB0'),
+        ('CHB0','CHB1'),
+        ('CHB1','CHB'),
+        ('CHB0','KHV'),
+        ('CHB1','JPT')
+    ])
+    
+    dg = demography.DemoGraph(G, Ne=Ne)
+    return dg
