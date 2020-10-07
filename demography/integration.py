@@ -139,10 +139,7 @@ def get_selfing_rates(G, new_pops):
             selfing.append(G.nodes[pop]['selfing'])
         else:
             selfing.append(0)
-    if set(selfing) == {0}:
-        return None
-    else:
-        return selfing
+    return selfing
 
 
 def reorder_events(new_events):
@@ -334,6 +331,8 @@ def get_moments_arguments(dg):
             # rearrange new events so that marginalize happens last
             events.append(reorder_events(new_events))
     
+    assert np.all([t >= 0 for t in integration_times]), "negative integration time -- probably some mistake in defining the demography"
+    
     return present_pops, integration_times, nus, migration_matrices, frozen_pops, selfing_rates, events
 
 
@@ -364,7 +363,8 @@ def augment_with_frozen(dg, sampled_pops):
                 mapping = {pop: pop_pre}
                 G = nx.relabel_nodes(G, mapping)
                 # add frozen population
-                G.add_node(pop, nu=1, T=time_left, frozen=True)
+                G.add_node(pop, nu=G.nodes[pop_pre]['nu'], T=time_left,
+                           frozen=True)
                 # add edge between ancient and frozen population
                 G.add_edge(pop_pre, pop)
         # create dg object and add relevant attributes that were present on dg

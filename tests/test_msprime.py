@@ -135,7 +135,7 @@ class TestMsprimeFunctions(unittest.TestCase):
         pop_configs, mig_mat, demo_events = dg.msprime_inputs(Ne=Ne)
         moves = [0,0,0]
         for de in demo_events:
-            if de.type == 'mass_migration':
+            if de.get_ll_representation()['type'] == 'mass_migration':
                 if de.dest == 0:
                     moves[de.source-1] = 1
         self.assertTrue(np.all(moves))

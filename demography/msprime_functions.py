@@ -90,11 +90,14 @@ def get_population_configurations(dg, contemporary_pops, growth_rates, Ne):
         if 'nu' in dg.G.nodes[pop]:
             pop_configs.append(
                 msprime.PopulationConfiguration(
-                    initial_size=dg.G.nodes[pop]['nu']*Ne))
+                    initial_size=dg.G.nodes[pop]['nu']*Ne,
+                    metadata={'label': pop})
+            )
         elif 'nuF' in dg.G.nodes[pop]:
             pop_configs.append(
                 msprime.PopulationConfiguration(
-                    initial_size=dg.G.nodes[pop]['nuF']*Ne))
+                    initial_size=dg.G.nodes[pop]['nuF']*Ne,
+                    metadata={'label': pop}))
             if pop in contemporary_pops:
                 pop_configs[-1].growth_rate = growth_rates[pop]
         else:
@@ -126,8 +129,8 @@ def get_demographic_events(dg, pop_indexes, present_pops, integration_times,
                             present_pops[-2::-1]):
         # update time for this set of events
         elapsed_time += 2*Ne*it
-        # append events
-        for e in es:
+        # append events (in reverse order backward in time)
+        for e in es[::-1]:
             demo_events = demo_event_at(elapsed_time, e, pop_indexes,
                                         demo_events)
         # set population sizes for present pops

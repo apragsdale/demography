@@ -96,7 +96,7 @@ def pop_sizes(pop_config, demo_events):
         N_t[0][pop_ind] = drift_rate_func(N0, r, 0)
     
     for de in demo_events:
-        if de.type == 'population_parameters_change':
+        if de.get_ll_representation()['type'] == 'population_parameters_change':
             pop_ind = de.population
             t0 = de.time
             if de.initial_size is None:
@@ -133,7 +133,7 @@ def migration_matrices(pop_config, mig_mat, demo_events):
     ms[0] = copy.copy(m)
     for de in demo_events:
         gen = int(np.ceil(de.time))
-        if de.type == 'migration_rate_change':
+        if de.get_ll_representation()['type'] == 'migration_rate_change':
             if de.matrix_index is None:
                 m *= de.rate
                 ms[gen] = copy.copy(m)
@@ -171,7 +171,7 @@ def pulse_events(pop_config, demo_events):
     inds = set_up_inds(num_pops)
     pulses = {}
     for de in demo_events:
-        if de.type == 'mass_migration':
+        if de.get_ll_representation()['type'] == 'mass_migration':
             P = np.eye(num_pops*(num_pops+1)//2)
             gen = int(np.ceil(de.time))
             ind_from = de.source

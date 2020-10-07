@@ -1,5 +1,6 @@
 import networkx as nx
-
+import numpy as np
+from scipy.special import gammaln
 
 ## exception raised if the input graph has an issue
 class InvalidGraph(Exception):
@@ -37,6 +38,18 @@ def check_valid_demography(dg):
     # check that all times align
     if all_merger_times_align(dg) == False:
         raise InvalidGraph('splits/mergers do not align')
+    # check that no migration to or from any frozen population
+    frozen_pops = []
+    for pop1 in dg.G.nodes:
+        if 'frozen' in dg.G.nodes[pop1] and dg.G.nodes[pop1] == True:
+            if 'm' in dg.G.nodes[pop] and len(dg.G.nodes[pop1]['m']) != 0:
+                raise InvalidGraph('Cannot have migration out of frozen pop')
+            frozen_pops.append(pop1)
+    for pop2 in dg.G.nodes:
+        if 'm' in dg.G.nodes[pop2]:
+            for pop_to in dg.G.nodes[pop2]['m']:
+                if pop_to in frozen_pops:
+                    raise InvalidGraph('Cannot have migration into frozen pop')
     
 def max_two_successors(dg):
     # check that at most two successors
@@ -99,4 +112,8 @@ def get_one_parent(dg, child):
     else:
         parent = dg.predecessors[child]
     return parent
+
+
+def _choose(n, i):
+    return np.exp(gammaln(n+1)- gammaln(n-i+1) - gammaln(i+1))
 

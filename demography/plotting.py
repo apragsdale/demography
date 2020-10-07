@@ -156,7 +156,8 @@ def draw_edge(ax, edge, dg, pop_locations, offset=0.005, buffer=0.03):
         arrowprops={'arrowstyle': '->'})
     if annot == True:
         ax.annotate(
-            f'{weight}', xy=(np.mean([x_from, x_to]), np.mean([y_from, y_to])), xycoords='data',
+            f'{weight}', xy=(np.mean([x_from, x_to]), 
+            np.mean([y_from, y_to])), xycoords='data',
             xytext=(4, 0), textcoords='offset points')
 
 
@@ -179,7 +180,7 @@ def draw_pulses(ax, dg, pop_locations, offset):
                     xytext=(x_from, y_from), textcoords='data',
                     arrowprops={'arrowstyle': '->', 'ls': 'dashed'})
                 ax.annotate(
-                    f'{weight}', xy=(np.mean([x_from, x_to]), 
+                    "{0:.2g}".format(weight), xy=(np.mean([x_from, x_to]), 
                                      np.mean([y_from, y_to])),
                     xycoords='data',
                     xytext=(0, 3), textcoords='offset points')
@@ -432,8 +433,6 @@ def plot_demography(dg, fignum=1, leaf_order=None, labels=None, ax=None,
     xticklabels = []
     for leaf in leaf_order:
         center = np.mean(pop_locations[leaf][:2])
-        #bottom = 1-intervals[leaf][1]
-        #ax.text(center, (bottom-0.1)*rescaling, label, ha='center', va='center')
         xticks.append(center)
 
     ax.set_xticks(xticks)
@@ -465,22 +464,36 @@ def set_scale(dg, ax, Ne, gen, ylabel, rescaling):
     # hide the bottom, top, and right spines
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-    
-    ax.spines['bottom'].set_position(('outward', 10))
-    
+    ax.spines['bottom'].set_visible(False)
+    ax.tick_params(axis='x', which=u'both',length=0) 
     ax.spines['left'].set_position(('outward', 10))
-    ax.set_ylim(bottom=0)
+    ax.spines['left'].set_bounds(0, ax.get_ylim()[1])
     ax.set_ylabel(ylabel)
 
 
 def draw_migrations(ax, dg, pop_locations, intervals, rescaling):
     drawn_heights = []
     buffer = 0.02
+    # if symmetric migration, draw as double headed and only draw once
+    symmetric_drawn = []
     for pop in dg.G.nodes:
         if 'm' in dg.G.nodes[pop]:
             for pop_to in dg.G.nodes[pop]['m']:
                 rate = dg.G.nodes[pop]['m'][pop_to]
                 if rate > 0:
+                    # check if already drawn
+                    if (pop_to, pop) in symmetric_drawn:
+                        continue
+                    # check if it is symmetric, record and draw double headed
+                    symmetric = False
+                    arrow_style = '->'
+                    if 'm' in dg.G.nodes[pop_to]:
+                        if pop in dg.G.nodes[pop_to]['m']:
+                            if dg.G.nodes[pop_to]['m'][pop] == rate:
+                                symmetric = True
+                                symmetric_drawn.append( (pop, pop_to) )
+                                arrow_style = '<->'
+
                     ys_from = intervals[pop]
                     ys_to = intervals[pop_to]
                     ys = (max(ys_from[0], ys_to[0]), min(ys_from[1], ys_to[1]))
@@ -508,7 +521,7 @@ def draw_migrations(ax, dg, pop_locations, intervals, rescaling):
                         ax.annotate(
                             '', xy=(x_to, (1-y)*rescaling), xytext=(x_from, (1-y)*rescaling),
                             xycoords='data', textcoords='data',
-                            arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'lw': np.log(1+rate)})
+                            arrowprops={'arrowstyle': arrow_style, 'ls': 'dashed', 'lw': np.log(1+rate)})
                         drawn_heights.append(y)
                     if pop_locations[pop][0] > pop_locations[pop_to][1]:
                         # use left edge of pop from, right of pop_to
@@ -519,7 +532,7 @@ def draw_migrations(ax, dg, pop_locations, intervals, rescaling):
                         ax.annotate(
                             '', xy=(x_to, (1-y)*rescaling), xytext=(x_from, (1-y)*rescaling),
                             xycoords='data', textcoords='data',
-                            arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'lw': np.log(1+rate)})
+                            arrowprops={'arrowstyle': arrow_style, 'ls': 'dashed', 'lw': np.log(1+rate)})
                         drawn_heights.append(y)
 
 
@@ -542,7 +555,7 @@ def draw_pulse_event(ax, pop_from, pulse_event, pop_locations, intervals, rescal
         xytext=(x_from, y*rescaling), textcoords='data',
         arrowprops={'arrowstyle': '->'})
     ax.annotate(
-        f'{weight:.2f}', xy=(np.mean([x_from, x_to]), y*rescaling), xycoords='data',
+        "{0:.2g}".format(weight), xy=(np.mean([x_from, x_to]), y*rescaling), xycoords='data',
         xytext=(0, 3), textcoords='offset points', ha='center')
 
 
@@ -755,7 +768,7 @@ def get_pop_corners(node, bottom_center, dg, pop_locations, intervals, flipped):
 def get_xs(node, dg, pop_locations, intervals):
     [bottom_left, bottom_right, top_left, top_right] = pop_locations[node]
     y0, yF = intervals[node]
-    y = np.linspace(y0, yF, 21)
+    y = np.linspace(y0, yF, 51)
     if bottom_left == top_left:
         x_l = np.ones(len(y)) * bottom_left
     else:
