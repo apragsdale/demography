@@ -389,6 +389,22 @@ def plot_demography(dg, fignum=1, leaf_order=None, labels=None, ax=None,
     bottom_times = [intervals[p][1] for p in all_pops]
     sorted_pops = [x for _,x in sorted(zip(bottom_times,all_pops))]
     
+    # make sure sorted pops are in correct order
+    any_swap = 1
+    while any_swap:
+        any_swap = 0
+        break_out = 0
+        for ii, pop in enumerate(sorted_pops):
+            for jj, pop0 in enumerate(sorted_pops[:ii]):
+                if pop not in dg.leaves:
+                    if pop0 in dg.successors[pop]:
+                        break_out = 1
+                        any_swap = 1
+                        sorted_pops[ii], sorted_pops[jj] = sorted_pops[jj], sorted_pops[ii]
+                        break
+            if break_out:
+                break
+    
     # draw populations starting from the most recent
     # draw all the leaves first, then go through other nodes
     # start with left leaf,

@@ -145,10 +145,14 @@ def get_selfing_rates(G, new_pops):
 def reorder_events(new_events):
     """
     Place marginalize events at end of events
+    Splits occur before mergers
     """
     new_events_reordered = []
     for event in new_events:
-        if event[0] != 'marginalize' and event[0] != 'pass':
+        if event[0] != 'marginalize' and event[0] != 'pass' and event[0] != 'merger':
+            new_events_reordered.append(event)
+    for even in new_events:
+        if event[0] == 'merger':
             new_events_reordered.append(event)
     for event in new_events:
         if event[0] == 'pass':

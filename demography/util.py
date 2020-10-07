@@ -82,10 +82,9 @@ def all_merger_times_align(dg):
                     for j in range(i,len(nodes)):
                         if n in nodes[j]:
                             t2 = times[j][nodes[j].index(n)]
-                            if t1 != t2:
+                            if abs(t1 - t2) > 1e-14:
                                 all_align = False
                                 return all_align
-                    
         else:
             continue
     return all_align
