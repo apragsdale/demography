@@ -151,7 +151,7 @@ def reorder_events(new_events):
     for event in new_events:
         if event[0] != 'marginalize' and event[0] != 'pass' and event[0] != 'merger':
             new_events_reordered.append(event)
-    for even in new_events:
+    for event in new_events:
         if event[0] == 'merger':
             new_events_reordered.append(event)
     for event in new_events:
@@ -234,7 +234,7 @@ def get_next_events(dg, pulse_migration_events, time_left, present_pops):
                         # from the other parent
                         event_recorded = 0
                         for event in new_events:
-                            if event[0] == 'merger' and event[1] == (parent1, parent2):
+                            if event[0] == 'merger' and (event[1] == (parent1, parent2) or event[1] == (parent2, parent1)):
                                 event_recorded = 1
                         if event_recorded == 1:
                             continue
