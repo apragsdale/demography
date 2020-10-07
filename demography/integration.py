@@ -145,10 +145,14 @@ def get_selfing_rates(G, new_pops):
 def reorder_events(new_events):
     """
     Place marginalize events at end of events
+    Splits occur before mergers
     """
     new_events_reordered = []
     for event in new_events:
-        if event[0] != 'marginalize' and event[0] != 'pass':
+        if event[0] != 'marginalize' and event[0] != 'pass' and event[0] != 'merger':
+            new_events_reordered.append(event)
+    for even in new_events:
+        if event[0] == 'merger':
             new_events_reordered.append(event)
     for event in new_events:
         if event[0] == 'pass':
@@ -342,7 +346,8 @@ def augment_with_frozen(dg, sampled_pops):
     tol of each other. If not, extend the populations that fall short with
     frozen populations, adding a new frozen pops that we pass.
     What do we do with names? A: make the ancient population <name>_pre, and
-    set the frozen pop to <name>.
+    set the frozen pop to <name>. If there are pulse migrations into <name>, reset
+    the pulse migration event to <name_pre>.
     """
     dg_out = copy.deepcopy(dg)
     accumulated_times = util.get_accumulated_times(dg)
@@ -359,14 +364,31 @@ def augment_with_frozen(dg, sampled_pops):
                 time_left = max_time - accumulated_times[pop]
                 # relabel the population node
                 pop_pre = pop + '_pre'
-                assert pop_pre not in G.nodes, "naming issue..."
+                assert pop_pre not in G.nodes, f"naming issue..., cannot have {pop_pre}"
                 mapping = {pop: pop_pre}
                 G = nx.relabel_nodes(G, mapping)
                 # add frozen population
-                G.add_node(pop, nu=G.nodes[pop_pre]['nu'], T=time_left,
+                if 'nu' in G.nodes[pop_pre]:
+                    nu_frozen = nu=G.nodes[pop_pre]['nu']
+                else:
+                    nu_frozen = nu=G.nodes[pop_pre]['nuF']
+                G.add_node(pop, nu=nu_frozen, T=time_left,
                            frozen=True)
                 # add edge between ancient and frozen population
                 G.add_edge(pop_pre, pop)
+                # go through rest of pops and resent any migration or pulse events to pop_pre
+                for node in G.nodes():
+                    if 'm' in G.nodes()[node]:
+                        for pop_to in G.nodes()[node]['m'].keys():
+                            if pop_to == pop:
+                                G.nodes()[node]['m'][pop_pre] = G.nodes()[node]['m'][pop_to]
+                                G.nodes()[node]['m'].pop(pop_to)
+                    if 'pulse' in G.nodes()[node]:
+                        for pulse_event in G.nodes()[node]['pulse']:
+                            if pulse_event[0] == pop:
+                                new_pulse_event = (pop_pre, pulse_event[1], pulse_event[2])
+                                G.nodes()[node]['pulse'].remove(pulse_event)
+                                G.nodes()[node]['pulse'].add(new_pulse_event)
         # create dg object and add relevant attributes that were present on dg
         dg_out = demography.DemoGraph(G, Ne=dg.Ne, mutation_rate=dg.mutation_rate)
         return dg_out
@@ -386,7 +408,8 @@ def ld_root_equilibrium(nu, theta, rho, pop_id, selfing=None):
     return Y
 
 
-def evolve_ld(dg, rho=None, theta=None, pop_ids=None, augment=True):
+def evolve_ld(dg, rho=None, theta=None, pop_ids=None, augment=True,
+              time_series=False, time_series_resolution=10):
     """
     integrates moments.LD along the demography, which returns an LDStats
     object, for the given rhos, where rho=4*Ne*r.
@@ -413,6 +436,11 @@ def evolve_ld(dg, rho=None, theta=None, pop_ids=None, augment=True):
     # initialize the LD stats at the root of the demography
     Y = ld_root_equilibrium(dg_sim.G.nodes[dg_sim.root]['nu'], theta, rho, dg_sim.root)
     
+    if time_series is True:
+        total_elapsed_time = 0
+        Y_cache = {}
+        epoch_num = 0
+    
     # step through the list of integrations and events
     for ii, (pops, T, nu, mig_mat, frozen, selfing) in enumerate(zip(
                 present_pops, integration_times, nus, migration_matrices,
@@ -421,9 +449,30 @@ def evolve_ld(dg, rho=None, theta=None, pop_ids=None, augment=True):
         nu_epoch = get_pop_size_function(nu)
 
         # integrate this epoch
-        Y.integrate(nu_epoch, T, rho=rho, theta=theta, m=mig_mat,
-                    selfing=selfing, frozen=frozen)
-
+        if time_series is False:
+            Y.integrate(nu_epoch, T, rho=rho, theta=theta, m=mig_mat,
+                        selfing=selfing, frozen=frozen)
+        else:
+            # break up epoch into time_series_resolution number of sub-epochs, cache
+            # intermediate results
+            Ts_split = np.linspace(0, T, time_series_resolution + 1)
+            T_sub = Ts_split[1]
+            Y_cache[epoch_num] = {}
+            Y_cache[epoch_num][total_elapsed_time] = copy.copy(Y)
+            for T0, T1 in zip(Ts_split[:-1], Ts_split[1:]):
+                # nus for this sub epoch
+                if callable(nu_epoch):
+                    nu_pass = [[nu_epoch(T0)[pp], nu_epoch(T1)[pp]] for pp in range(len(nu))]
+                    nu_subepoch = get_pop_size_function(nu_pass)
+                    Y.integrate(nu_subepoch, T_sub, rho=rho, theta=theta, m=mig_mat,
+                                selfing=selfing, frozen=frozen)
+                else:
+                    Y.integrate(nu_epoch, T_sub, rho=rho, theta=theta, m=mig_mat,
+                                selfing=selfing, frozen=frozen)
+                total_elapsed_time += T_sub
+                Y_cache[epoch_num][total_elapsed_time] = copy.copy(Y)
+            epoch_num += 1
+            
         # apply events
         if ii < len(events): ## want to change this to allow events at very end of simulation
             Y = ld_apply_events(Y, events[ii], present_pops[ii+1])
@@ -434,7 +483,10 @@ def evolve_ld(dg, rho=None, theta=None, pop_ids=None, augment=True):
     if pop_ids is not None:
         Y = ld_rearrange_pops(Y, pop_ids)
 
-    return Y
+    if time_series is False:
+        return Y
+    else:
+        return Y, Y_cache
 
 
 def ld_marginalize_nonpresent(Y, pop_ids):

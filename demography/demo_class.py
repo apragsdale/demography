@@ -121,7 +121,8 @@ class DemoGraph():
             theta = 1.0
         return theta
 
-    def LD(self, pop_ids, rho=None, r=None, theta=None, u=None, augment=True):
+    def LD(self, pop_ids, rho=None, r=None, theta=None, u=None, augment=True,
+           time_series=False, time_series_resolution=10):
         """
         
         """
@@ -146,7 +147,9 @@ class DemoGraph():
                     theta = 4*self.Ne*u
         
         y = integration.evolve_ld(self, rho=rho, theta=theta, pop_ids=pop_ids,
-                                  augment=augment)
+                                  augment=augment,
+                                  time_series=time_series,
+                                  time_series_resolution=time_series_resolution)
         return y
 
     def SFS(self, pop_ids, sample_sizes, engine='moments',

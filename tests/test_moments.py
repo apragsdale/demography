@@ -207,6 +207,25 @@ class TestMomentsIntegration(unittest.TestCase):
     def test_reversible_manips(self):
         pass
 
+    def test_three_way_split():
+        G = nx.DiGraph()
+        G.add_node('root', nu=1, T=0)
+        G.add_node('A', nu=1, T=.1)
+        G.add_node('pop1', nu=1, T=0)
+        G.add_node('pop2', nu=1, T=0)
+        G.add_node('pop3', nu=1, T=0)
+        G.add_edges_from([('root', 'A'), ('A', 'pop1'), ('A', 'pop2'), ('A', 'pop3')])
+        dg = demography.DemoGraph(G)
+        fs = dg.SFS(['pop1', 'pop2', 'pop3'], [8, 8, 8])
+        fs2 = moments.Spectrum(moments.LinearSystem_1D.steady_state_1D(24))
+        fs2 = moments.Manips.split_1D_to_2D(fs2, 16, 8)
+        fs2 = moments.Manips.split_2D_to_3D_1(fs2, 8, 8)
+        fs3 = moments.Spectrum(moments.LinearSystem_1D.steady_state_1D(24))
+        fs3 = moments.Manips.split_1D_to_2D(fs3, 8, 16)
+        fs3 = moments.Manips.split_2D_to_3D_2(fs3, 8, 8)
+        self.assertTrue(np.allclose(fs, fs2))
+        self.assertTrue(np.allclose(fs, fs3))
+
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMomentsIntegration)
 
 if __name__ == '__main__':
