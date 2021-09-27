@@ -9,7 +9,7 @@ from . import msprime_functions
 from . import util
 from . import coalescence_rates
 from . import tmrcas
-from . import twolocus_tmrcas
+# from . import twolocus_tmrcas
 import tskit
 
 
