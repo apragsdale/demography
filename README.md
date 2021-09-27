@@ -1,5 +1,17 @@
 # Demography
 
+---
+**NOTE**
+
+This package is no longer being maintained, as the new `demes` package
+should be used instead. `demes` (https://github.com/popsim-consortium/demes-python)
+interfaces with `moments`, `msprime`, `fwdpy11`, and other packages such as
+`dadi` should be supported soon. There are plotting features for `demes`
+objects available from Graham Gower's `demesdraw` package
+(https://github.com/grahamgower/demesdraw).
+
+---
+
 Repository for Demography Building as graphical objects, a Python package.
 
 Demographies are encoded as directed acyclic graphs using `networkx`,
