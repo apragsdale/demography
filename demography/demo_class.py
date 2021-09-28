@@ -15,8 +15,8 @@ import tskit
 
 ## check nx version (must be >= 2.1)
 def check_nx_version():
-    assert (float(nx.__version__) >= 2.2), "networkx must be version 2.2 or \
-                                            higher to use Demography"
+    assert (nx.__version__ >= "2.2"), "networkx must be version 2.2 or \
+                                       higher to use Demography"
 
 try:
     import msprime
