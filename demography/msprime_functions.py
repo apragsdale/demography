@@ -14,7 +14,12 @@ try:
 except ImportError:
     msprime_installed = 0
 
+import sys
+import math
+import itertools
+import networkx as nx
 import numpy as np
+import demography
 from . import integration
 from . import util
 
@@ -223,3 +228,156 @@ def get_samples(dg, pop_ids, sample_sizes):
         samples.extend([msprime.Sample(pop_indexes[pop], time=pop_time)] * ns)
     return samples
 
+
+def graph_from_ddb_graph(dict_graph, node_attrs, node_labels, dot=False):
+    """
+    Add attributes to a dict-of-dicts graph ``(dict_graph, node_attrs)`` that
+    can be used to import the graph as a DemoGraph().
+    """
+    # Get the nodes in the dict-of-dicts graph.
+    from_nodes = set(dict_graph.keys())
+    to_nodes = set(itertools.chain(*(d.keys() for d in dict_graph.values())))
+    all_nodes = from_nodes | to_nodes
+    root_set = from_nodes - to_nodes
+    assert len(root_set) == 1
+    root = root_set.pop()
+    Ne_ref = node_attrs[root]["start_size"]
+
+    epoch_name_suffix = True
+    if len(node_labels) == len(all_nodes):
+        epoch_name_suffix = False
+
+    # New node attributes dict.
+    dg_attrs = dict()
+
+    for node, node_attr in node_attrs.items():
+        epoch_j, pop_k = node
+        name = node_labels[pop_k]
+        if epoch_name_suffix and epoch_j > 0:
+            name += f"/{epoch_j}"
+
+        # Save the node identifier from the msprime.DemographyDebugger
+        # dict-of-dicts graph.
+        dg_attr = dict(msprime_node=node)
+
+        start_time = node_attr["start_time"]
+        end_time = node_attr["end_time"]
+        start_size = node_attr["start_size"]
+        end_size = node_attr["end_size"]
+
+        if math.isclose(start_size, end_size):
+            dg_attr.update(nu=start_size / Ne_ref)
+        else:
+            dg_attr.update(nu0=end_size / Ne_ref, nuF=start_size / Ne_ref)
+
+        # Get pulses and make the times a fraction of the epoch length.
+        # The pulse_in node attribute uses a backwards-time convention,
+        # which corresponds to pulses out of the node in the forwards-time
+        # convention used by DemoGraph.
+        pulse_out = node_attr["pulse_in"]
+        if len(pulse_out) > 0:
+            pulse = set()
+            for ((epoch_j, pop_k), time), proportion in pulse_out.items():
+                source = node_labels[pop_k]
+                if epoch_name_suffix and epoch_j > 0:
+                    source += f"/{epoch_j}"
+                t_frac = (end_time - time) / (end_time - start_time)
+                pulse.add((source, t_frac, proportion))
+            dg_attr.update(pulse=pulse)
+
+        def get_source(node_attrs, node):
+            """
+            Return ``node`` or its oldest descendent in ``node_attrs``.
+            """
+            a = node[0]
+            while a >= 0:
+                node = (a, node[1])
+                if node in node_attrs:
+                    break
+                a -= 1
+            if a < 0:
+                node = None
+            return node
+
+        # Migration rates.
+        # Like for migration pulses, the M_in node attribute corresponds to the
+        # migrants out of the node in a forward-time convention.
+        M_out = node_attr["M_in"]
+        if any(M_out > 0):
+            m_dict = dict()
+            for pop_i, m in enumerate(M_out):
+                if m > 0:
+                    source_node = get_source(node_attrs, (epoch_j, pop_i))
+                    if source_node is None:
+                        raise ValueError(f"No source for node {node}.")
+                    source = node_labels[pop_i]
+                    if epoch_name_suffix and source_node[0] > 0:
+                        source += f"/{source_node[0]}"
+                    m_dict[source] = m * 2 * Ne_ref
+            dg_attr.update(m=m_dict)
+
+        if node == root:
+            T = 0
+        else:
+            T = (end_time - start_time) / (2 * Ne_ref)
+        dg_attr.update(T=T)
+
+        # Make informative label for graphviz diagrams.
+        label = name
+        for k in ("T", "nu", "nu0", "nuF"):
+            if k in dg_attr:
+                label += f"\n{k}={dg_attr[k]:.3g}"
+        if "pulse" in dg_attr:
+            for source, t, prop in dg_attr["pulse"]:
+                label += f"\npulse[{source}]: t_frac={t:.3g}, m={prop:.3g}"
+        if "m" in dg_attr:
+            for source, prop in dg_attr["m"].items():
+                label += f"\nm[{source}]={prop:.3g}"
+        dg_attr.update(label=label)
+        dg_attrs[name] = dg_attr
+
+    G = nx.DiGraph(dict_graph)
+    assert nx.is_directed_acyclic_graph(G)
+    assert nx.is_tree(G)
+    # Rename nodes.
+    name_map = {attr["msprime_node"]: node for node, attr in dg_attrs.items()}
+    nx.relabel_nodes(G, name_map, copy=False)
+    # Apply the node attributes.
+    for node, node_attr in dg_attrs.items():
+        G.nodes[node].update(**node_attr)
+
+    if dot:
+        # Output graphviz dot file.        
+        A = nx.nx_agraph.to_agraph(G)
+        # Place all nodes for a given epoch at the same height.
+        for epoch_j, nodes in itertools.groupby(G.nodes, lambda n: G.nodes[n]["msprime_node"][0]):
+            A.add_subgraph(list(nodes), name=str(epoch_j), rank="same")
+        A.write(sys.stdout)
+
+    return demography.DemoGraph(G, Ne=Ne_ref)
+
+
+def graph_from_msprime(
+        demographic_events, migration_matrix, population_configurations,
+        populations=None, leaves=None, dot=False):
+    """
+    Construct a DemoGraph from msprime `demographic_events` and
+    `population_configurations`. An optional list of population names may
+    be provided in `populations`, in the same order as population_configurations.
+    If `leaves` is None, all populations will be treated as leaves. However,
+    if some populations should be internal nodes, then `leaves` should be a
+    list of the leaf populations.
+    """
+    if populations is None:
+        populations = [f"pop{i}" for i in range(len(population_configurations))]
+    if leaves is not None:
+        # Convert leaves to integer population IDs.
+        pop = {p: i for i, p in enumerate(populations)}
+        leaves = [pop[i] for i in leaves]
+    ddb = msprime.DemographyDebugger(
+            demographic_events=demographic_events,
+            migration_matrix=migration_matrix,
+            population_configurations=population_configurations)
+    dict_graph, node_attrs = ddb.as_graph(leaves=leaves)
+    dg = graph_from_ddb_graph(dict_graph, node_attrs, populations, dot=dot)
+    return dg
